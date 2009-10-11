@@ -38,23 +38,22 @@ class ChooseListDlg < Qt::Dialog
         self.windowTitle = 'RubyGem Asking Choose from List.'
 
         # createWidget
-        @msgLine = Qt::TextEdit.new
-        @msgLine.readOnly = true
-        @msgLine.minimumHeight = 15
+        @msgLine = Qt::Label.new
+        @msgLine.wordWrap = true
         @table = Qt::TableWidget.new(0,1)
         @table.horizontalHeader.stretchLastSection = true
-        @table.selectionMode = Qt::AbstractItemView::SingleSelection  # seg fault
-        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK') do |w|
-            connect(w, SIGNAL(:clicked), self, SLOT(:accept))
-        end
-
+        @table.selectionMode = Qt::AbstractItemView::SingleSelection
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
 
         # layout
         layout.dispose if layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@msgLine)
             l.addWidget(@table)
-            l.addWidgetAtRight(@okBtn)
+            l.addWidgetAtRight(@okBtn, @cancelBtn)
         end
         lo.setStretch(0, 0)
         lo.setStretch(1, 1)
@@ -62,8 +61,7 @@ class ChooseListDlg < Qt::Dialog
     end
 
     def ask(question, list)
-        @msgLine.clear
-        @msgLine.append( question )
+        @msgLine.text = question
         @table.clearContents
         @table.rowCount = list.length
         btm = list.length-1
@@ -73,8 +71,8 @@ class ChooseListDlg < Qt::Dialog
             @table.setItem(r, 0, item)
         end
         @table.setRangeSelected(Qt::TableWidgetSelectionRange.new(btm,0, btm,0), true)
-        exec
-        return nil, nil unless @table.currentItem
+        ret = exec
+        return nil, nil unless @table.currentItem && ret == Qt::Dialog::Accepted 
         row = @table.currentItem.row
         [list[row], row]
     end
@@ -86,12 +84,11 @@ class AskDlg < Qt::Dialog
         self.windowTitle = 'RubyGem Asking.'
 
         # createWidget
-        @msgLine = Qt::TextEdit.new
-        @msgLine.readOnly = true
+        @msgLine = Qt::Label.new
+        @msgLine.wordWrap = true
         @lineEdit = Qt::LineEdit.new
-        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK') do |w|
-            connect(w, SIGNAL(:clicked), self, SLOT(:accept))
-        end
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
@@ -103,8 +100,7 @@ class AskDlg < Qt::Dialog
     end
 
     def ask(question)
-        @msgLine.clear
-        @msgLine.append( question )
+        @msgLine.text = question
         @lineEdit.text = ''
         exec
         @lineEdit.text
@@ -116,14 +112,12 @@ class YesNoDlg < Qt::Dialog
         super(parent)
         self.windowTitle = 'RubyGem Asking Y/N.'
 
-        @msgLine = Qt::TextEdit.new
-        @msgLine.readOnly = true
-        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK') do |w|
-            connect(w, SIGNAL(:clicked), self, SLOT(:accept))
-        end
-        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel') do |w|
-            connect(w, SIGNAL(:clicked), self, SLOT(:reject))
-        end
+        @msgLine = Qt::Label.new
+        @msgLine.wordWrap = true
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
@@ -134,8 +128,7 @@ class YesNoDlg < Qt::Dialog
     end
 
     def ask(question)
-        @msgLine.clear
-        @msgLine.append(question)
+        @msgLine.text = question
         exec == Qt::Dialog::Accepted ? true : false
     end
 end
@@ -166,14 +159,14 @@ class MainWindow < KDE::MainWindow
 
     def createWidget
         @logWidget = Qt::TextBrowser.new
-        @okButton = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
 
-        connect(@okButton, SIGNAL(:clicked), $app, SLOT(:quit))
+        connect(@okBtn, SIGNAL(:clicked), $app, SLOT(:quit))
 
         # layout
         lw = VBoxLayoutWidget.new do |w|
             w.addWidget(@logWidget)
-            w.addWidgetAtRight(@okButton)
+            w.addWidgetAtRight(@okBtn)
         end
         setCentralWidget( lw )
     end
@@ -184,7 +177,7 @@ class MainWindow < KDE::MainWindow
         # initialize gem ui
         @winUi = Gem::DefaultUserInteraction.ui = WinUI.new(self, @logWidget)
 
-#         testWinUi
+        testWinUi
         
         begin
             Gem::GemRunner.new.run @args
@@ -194,15 +187,24 @@ class MainWindow < KDE::MainWindow
     end
 
     def testWinUi
-        @winUi.ask "test ask."
-        @winUi.ask_yes_no "test ask Y/N."
-        @winUi.choose_from_list "test choose.", %w{ zarusoba tensoba yamakakesoba nishinsoba }
+        ret = @winUi.ask "test ask. what is your name?"
+        @winUi.write("your answer is " + ret)
+        
+        ret = @winUi.ask "test ask long message.\nsome long explanation.\nwhat is your favourite food?"
+        @winUi.write("your answer is " + ret)
+        
+        ret = @winUi.ask_yes_no "test ask Y/N."
+        @winUi.write("your answer is " + (ret ? "yes" : "no"))
+        
+        ret = @winUi.choose_from_list "test choose.", %w{ zarusoba tensoba yamakakesoba nishinsoba }
+        @winUi.write("your answer is " + (ret[0] ? ret[0] : "none"))
+        
         @winUi.alert "test alert."
         @winUi.alert_error "test alert_error."
         @winUi.alert_warning "test alert_warning."
         progress = @winUi.progress_reporter 10, "test progress."
         10.times do |i|
-            sleep(0.2)
+            sleep(0.1)
             progress.updated "testing count : #{i}"
         end
     end
