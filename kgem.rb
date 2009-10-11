@@ -10,6 +10,7 @@ require 'ftools'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
 APP_VERSION = "0.1"
+APP_DIR = File.dirname(__FILE__)
 
 # standard libs
 # require 'uri'
@@ -111,24 +112,7 @@ class GemListTable < Qt::TableWidget
         setItem( row, PACKAGE_STATUS, Item.new(gem.status) )
     end
 
-
-    # use for returning package data.
-    # now you can access Table with [] and names
-    # example :
-    #    @packageTable[row].name
-    #    @packageTable[row].version
-    class RetItem
-        attr_reader :package, :version, :description, :status
-        
-        def initialize(pkg, ver, desc, status)
-            @package = pkg
-            @version = ver
-            @description = desc
-            @status = status
-        end
-    end
-
-
+    
     def gem(item)
         gemAtRow(item.row)
     end
@@ -181,9 +165,9 @@ class DetailWin < Qt::DockWidget
     end
 
     def createWidget
-        @textEdit = Qt::TextEdit.new
-        @textEdit.readOnly = true
-        setWidget(@textEdit)
+        @textPart = Qt::TextBrowser.new
+        @textPart.openExternalLinks = true
+        setWidget(@textPart)
     end
 
     class HtmlStr < String
@@ -205,21 +189,88 @@ class DetailWin < Qt::DockWidget
 
     public
     def setDetail(gem)
-        @textEdit.clear
+        @textPart.clear
         html = HtmlStr.new
-        html.insertHtml( "<font size='+1'>#{gem.package}</font><br>" )
-        html.insertHtml("<table><tbody>")
+        html.insertHtml("<font size='+1'>#{gem.package}</font><br>")
+        html.insertHtml("<table>")
         html.insertItem('Author', gem.author)
         html.insertUrl('Rubyforge', gem.rubyforge)
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform)
-        html.insertHtml("</tbody></table><p>")
+        html.insertHtml("</table><p>")
         html.insertHtml(gem.description.gsub(/\n/,'<br>'))
         
-        @textEdit.insertHtml(html)
+        @textPart.insertHtml(html)
     end
 end
 
+#--------------------------------------------------------------------
+#
+#
+class TerminalWin < Qt::DockWidget
+    slots   'processfinished(int,QProcess::ExitStatus)'
+    slots   'cleanup(QObject*)'
+    slots   :processReadyRead
+
+    def initialize(parent)
+        super('Output', parent)
+        self.objectName = 'Terminal'
+        createWidget
+        processSetup
+
+        connect(self, SIGNAL('destroyed(QObject*)'), self, SLOT('cleanup(QObject*)'))
+    end
+
+    def createWidget
+        @textEdit = Qt::TextEdit.new
+        @textEdit.readOnly = true
+        setWidget(@textEdit)
+    end
+    
+    def processSetup
+        @process = Qt::Process.new(self)
+        @process.setProcessChannelMode(Qt::Process::MergedChannels)
+        connect(@process, SIGNAL('finished(int,QProcess::ExitStatus)'),
+                self, SLOT('processfinished(int,QProcess::ExitStatus)'))
+        connect(@process, SIGNAL(:readyReadStandardOutput),
+                self, SLOT(:processReadyRead))
+        connect(@process, SIGNAL(:readyReadStandardError),
+                self, SLOT(:processReadyRead))
+    end
+
+    def write(text)
+        @textEdit.append(text)
+    end
+
+    def processStart(cmd, args)
+        return unless @process.state == Qt::Process::NotRunning
+        @process.start(cmd, args)
+    end
+
+    def processfinished(exitCode, exitStatus)
+        write( @process.readAll.data )
+    end
+
+    def processReadyRead
+        lines = @process.readAll.data
+        lines.gsub!(/^kdesu .*?\n/, '')
+        lines.gsub!(/~?ScimInputContextPlugin.*?\n/, '')
+        unless lines.empty?
+            print lines
+            write( lines )
+        end
+    end
+
+    def cleanup(obj)
+        puts "killing all process."
+        @process.kill
+    end
+    
+#     def keyPressEvent(event)
+#         print event.text
+#         @process.write(event.text) if @process
+#     end
+end
 
 
 #--------------------------------------------------------------------
@@ -230,7 +281,7 @@ end
 class MainWindow < KDE::MainWindow
     slots   :updateAvailableGemList, :updateInstalledGemList
     slots   'itemClicked (QTableWidgetItem *)'
-    slots   :viewRdoc, :viewDir
+    slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
 
     def initialize
         super(nil)
@@ -283,6 +334,8 @@ class MainWindow < KDE::MainWindow
         # dockable window
         @detailWin = DetailWin.new(self)
         addDockWidget(Qt::BottomDockWidgetArea, @detailWin)
+        @termilanWin = TerminalWin.new(self)
+        tabifyDockWidget(@detailWin, @termilanWin)
         
         # other
         @installedGemsTable = GemListTable.new
@@ -290,8 +343,8 @@ class MainWindow < KDE::MainWindow
 
         @installBtn = KDE::PushButton.new(KDE::Icon.new('list-add'), 'Install')
         @upgradeBtn = KDE::PushButton.new('Upgrade')
-        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-about'), 'View RDoc')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
+        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-about'), 'View RDoc')
         @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @updateAvailableBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
@@ -308,12 +361,12 @@ class MainWindow < KDE::MainWindow
         end
         
         # connect
+        connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
+        connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
+        connect(@installBtn, SIGNAL(:clicked), self, SLOT(:installGem))
+        connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
         connect(@updateInstalledBtn, SIGNAL(:clicked),
                 self, SLOT(:updateInstalledGemList))
-        connect(@viewRdocBtn, SIGNAL(:clicked),
-                self, SLOT(:viewRdoc))
-        connect(@viewDirBtn, SIGNAL(:clicked),
-                self, SLOT(:viewDir))
         connect(@updateAvailableBtn, SIGNAL(:clicked),
                 self, SLOT(:updateAvailableGemList))
         connect(@installedGemsTable, SIGNAL('itemClicked (QTableWidgetItem *)'),
@@ -415,7 +468,7 @@ class MainWindow < KDE::MainWindow
         gemList
     end
 
-    GEM_MAX = 5331
+    GEM_MAX = 5331  # not need accuracy. just for progress bar
     # @param gemf : gem file
     # @return gemList
     def parseGemFile(gemf)
@@ -440,7 +493,7 @@ class MainWindow < KDE::MainWindow
                     end
                     gem = Gem.new($1)
                     desc = ''
-                when /\s+Author:\s*(.*)\s*/i
+                when /\s+Authors?:\s*(.*)\s*/i
                     gem.author = $1
                 when /\s+Rubyforge:\s*(.*)\s*/i
                     gem.rubyforge = $1
@@ -448,6 +501,8 @@ class MainWindow < KDE::MainWindow
                     gem.homepage = $1
                 when /\s+Platform:\s*(.*)\s*/i
                     gem.platform = $1
+                when /\s+Installed\s+at.*?:\s*(.*)\s*/i
+                when /\s+\(.*?\):\s*(.*)\s*/i
                 else
                     desc += line.strip + "\n"
                 end
@@ -513,7 +568,27 @@ class MainWindow < KDE::MainWindow
         url = getGemDir + '/gems/' + pkg + '-' + ver 
         %x{dolphin '#{url}'}
     end
+
+    # slot
+    def installGem
+        gem = @availableGemsTable.currentGem
+        return unless gem
+
+        args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
+        args.push( gem.package )
+        @termilanWin.processStart('kdesu', args)
+    end
+
+    # slot
+    def uninstallGem
+        gem = @installedGemsTable.currentGem
+        return unless gem
         
+        args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'uninstall' ]
+        args.push( gem.package )
+        @termilanWin.processStart('kdesu', args)
+    end
+
 end
 
 

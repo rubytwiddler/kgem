@@ -33,7 +33,7 @@ class Qt::VBoxLayout
         addWidgetWithNilStretch(*w)
     end
 
-    def addWidgetAtLeft(*w)
+    def addWidgetAtRight(*w)
         w.unshift(nil)
         addWidgetWithNilStretch(*w)
     end
@@ -42,9 +42,9 @@ end
 
 #
 class VBoxLayoutWidget < Qt::Widget
-    def initialize(parent=nil,  f=nil)
-        @layout = Qt::VBoxLayout.new(parent)
-        super(parent, f)
+    def initialize(parent=nil)
+        @layout = Qt::VBoxLayout.new
+        super(parent)
         setLayout(@layout)
     end
 
@@ -60,8 +60,8 @@ class VBoxLayoutWidget < Qt::Widget
         @layout.addWidgetWithNilStretch(*w)
     end
 
-    def addWidgetAtLeft(*w)
-        @layout.addWidgetAtLeft(*w)
+    def addWidgetAtRight(*w)
+        @layout.addWidgetAtRight(*w)
     end
 
     def addWidgetAtCenter(*w)
@@ -74,9 +74,9 @@ class VBoxLayoutWidget < Qt::Widget
 end
 
 class HBoxLayoutWidget < Qt::Widget
-    def initialize(parent=nil, f=nil)
-        @layout = Qt::HBoxLayout.new(parent)
-        super(parent, f)
+    def initialize(parent=nil)
+        @layout = Qt::HBoxLayout.new
+        super(parent)
         setLayout(@layout)
     end
 
