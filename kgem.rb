@@ -2,7 +2,7 @@
 #
 #    2009 by ruby.twiddler@gmail.com
 #
-#      Ruby Gem KDE GUI
+#      Ruby Gem with KDE GUI
 #
 
 $KCODE = 'Ku'
@@ -13,10 +13,9 @@ APP_VERSION = "0.1"
 APP_DIR = File.dirname(__FILE__)
 
 # standard libs
-# require 'uri'
-# require 'net/http'
-# require 'open-uri'
 require 'fileutils'
+require 'rubygems'
+require 'rubygems/specification'
 
 # additional libs
 require 'korundum4'
@@ -40,9 +39,9 @@ module PackageStatus
 end
 include PackageStatus
 
-class Gem
+class GemItem
     attr_accessor   :package, :version, :author, :rubyforge, :homepage, :platform
-    attr_accessor   :description, :status
+    attr_accessor   :summary, :status, :spec
     alias   :name :package
     def initialize(pkg_and_ver)
         pkg, ver = pkg_and_ver.split(/ /, 2)
@@ -53,8 +52,9 @@ class Gem
         @rubyforge = ''
         @homepage = ''
         @platform = ''
-        @description = ''
+        @summary = ''
         @status = STATUS_NOTINSTALLED
+        @spec = nil
     end
     
     def latestVersion
@@ -85,21 +85,41 @@ class GemListTable < Qt::TableWidget
     # column no
     PACKAGE_NAME = 0
     PACKAGE_VERSION = 1
-    PACKAGE_DESCRIPTION = 2
+    PACKAGE_SUMMARY = 2
     PACKAGE_STATUS = 3
     
-    def initialize
+    def initialize(title)
         super(0,4)
-        
-        setHorizontalHeaderLabels(['package', 'version', 'description', 'status'])
+
+        self.windowTitle = title
+        setHorizontalHeaderLabels(['package', 'version', 'summary', 'status'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
         self.alternatingRowColors = true
         self.sortingEnabled = true
         sortByColumn(PACKAGE_NAME, Qt::AscendingOrder )
         @gems = {}
+        restoreColumnWidths
     end
 
+    def restoreColumnWidths
+        config = $config.group("tbl-#{windowTitle}")
+        str = config.readEntry('columnWidths', "[]")
+        if str =~ /^\[[0-9\,\s]*\]$/ then
+            cols = str[1..-2].split(/,/).map(&:to_i)
+            if cols.length == columnCount then
+                columnCount.times do |i| setColumnWidth(i, cols[i]) end
+            end
+        end
+    end
+    
+    def saveColumnWidths
+        config = $config.group("tbl-#{windowTitle}")
+        cols = []
+        columnCount.times do |i| cols << columnWidth(i) end
+        config.writeEntry('columnWidths', cols.inspect)
+    end
+    
     # caution ! : befor call, sortingEnabled must be set false.
     #   speed performance problem elude changing sortingEnabled each time.
     def addPackage(row, gem)
@@ -108,7 +128,7 @@ class GemListTable < Qt::TableWidget
         @gems[nameItem] = gem           # 0 column item is hash key.
         setItem( row, PACKAGE_NAME, nameItem  )
         setItem( row, PACKAGE_VERSION, Item.new(gem.version) )
-        setItem( row, PACKAGE_DESCRIPTION, Item.new(gem.description) )
+        setItem( row, PACKAGE_SUMMARY, Item.new(gem.summary) )
         setItem( row, PACKAGE_STATUS, Item.new(gem.status) )
     end
 
@@ -130,7 +150,11 @@ class GemListTable < Qt::TableWidget
             showRow(r)
         end
     end
-        
+
+    def closeEvent(ev)
+        saveColumnWidths
+        super(ev)
+    end
     
     # slot
     public
@@ -143,7 +167,7 @@ class GemListTable < Qt::TableWidget
         regxs = /#{text.strip}/i
         rowCount.times do |r|
             gem = gemAtRow(r)
-            txt = gem.package + gem.description + gem.author + gem.platform
+            txt = gem.package + gem.summary + gem.author + gem.platform
             if regxs =~ txt then
                 showRow(r)
             else
@@ -192,13 +216,14 @@ class DetailWin < Qt::DockWidget
         @textPart.clear
         html = HtmlStr.new
         html.insertHtml("<font size='+1'>#{gem.package}</font><br>")
+        html.insertHtml(gem.summary.gsub(/\n/,'<br>'))
         html.insertHtml("<table>")
         html.insertItem('Author', gem.author)
         html.insertUrl('Rubyforge', gem.rubyforge)
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform)
         html.insertHtml("</table><p>")
-        html.insertHtml(gem.description.gsub(/\n/,'<br>'))
+        html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
         
         @textPart.insertHtml(html)
     end
@@ -287,13 +312,9 @@ class MainWindow < KDE::MainWindow
         super(nil)
         setCaption(APP_NAME)
 
-        # read config
-        @config = KDE::Config.new(APP_NAME+'rc')
-
         createMenu
         createWidgets
 
-        applyMainWindowSettings(KDE::Global.config.group("MainWindow"))
         setAutoSaveSettings()
     end
 
@@ -309,7 +330,7 @@ class MainWindow < KDE::MainWindow
 
         # connect actions
         connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateAvailableGemList))
-        connect(quitAction, SIGNAL(:triggered), $app, SLOT(:quit))
+        connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
 
         # Help menu
         about = i18n(<<-ABOUT
@@ -338,8 +359,8 @@ class MainWindow < KDE::MainWindow
         tabifyDockWidget(@detailWin, @termilanWin)
         
         # other
-        @installedGemsTable = GemListTable.new
-        @availableGemsTable = GemListTable.new
+        @installedGemsTable = GemListTable.new('installed')
+        @availableGemsTable = GemListTable.new('available')
 
         @installBtn = KDE::PushButton.new(KDE::Icon.new('list-add'), 'Install')
         @upgradeBtn = KDE::PushButton.new('Upgrade')
@@ -398,6 +419,16 @@ class MainWindow < KDE::MainWindow
         setCentralWidget(@gemsTab)
     end
 
+    #------------------------------------
+    #
+    #
+    def closeEvent(ev)
+        @installedGemsTable.closeEvent(ev)
+        @availableGemsTable.closeEvent(ev)
+        saveMainWindowSettings($config.group("MainWindow"))
+        super(ev)
+    end
+
     
     #------------------------------------
     # installed list
@@ -409,8 +440,7 @@ class MainWindow < KDE::MainWindow
     def openLocalGemList
         open('|gem query -d -l')
     end
-
-
+    
     #------------------------------------
     # available list
     # slot
@@ -420,7 +450,7 @@ class MainWindow < KDE::MainWindow
 
     def updateGemList(openMethod, tbl, status)
         setupProgress4makeGem
-        begin 
+        begin
             gemList = makeGemList(openMethod)
             return unless gemList
  
@@ -479,20 +509,20 @@ class MainWindow < KDE::MainWindow
         @progressDlg.setValue(0)
 
         begin
-            desc = ''
+            summary = ''
             gem = nil
             while line = gemf.gets
                 case line
                 when /^(\w.*)/ then
                     if gem then
-                        gem.description = desc.strip
+                        gem.summary = summary.strip
                         gemList ||= []
                         gemList << gem
                         cnt += 1
                         @progressDlg.setValue(cnt)
                     end
-                    gem = Gem.new($1)
-                    desc = ''
+                    gem = GemItem.new($1)
+                    summary = ''
                 when /\s+Authors?:\s*(.*)\s*/i
                     gem.author = $1
                 when /\s+Rubyforge:\s*(.*)\s*/i
@@ -504,10 +534,10 @@ class MainWindow < KDE::MainWindow
                 when /\s+Installed\s+at.*?:\s*(.*)\s*/i
                 when /\s+\(.*?\):\s*(.*)\s*/i
                 else
-                    desc += line.strip + "\n"
+                    summary += line.strip + "\n"
                 end
             end
-            gem.description = desc.strip
+            gem.summary = summary.strip
             gemList << gem
         ensure
             gemf.close
@@ -528,7 +558,6 @@ class MainWindow < KDE::MainWindow
             open(tmpPath, 'w') do |f|
                 cnt = 0
                 GemReadRange.each do |c|
-#                     puts "processing '#{c}'"
                     throw :canceled if @progressDlg.wasCanceled
                     @progressDlg.setValue(cnt)
                     cnt += 1
@@ -543,9 +572,38 @@ class MainWindow < KDE::MainWindow
 
     # slot
     def itemClicked(item)
+        unless item.gem.spec then
+            spec = getGemSpecCache(item.gem)
+            unless spec then
+                specStr = %x{gem specification #{item.gem.package} -b --marshal}
+                spec = Marshal.load(specStr)
+            end
+            item.gem.spec = spec
+        end
         @detailWin.setDetail( item.gem )
     end
+    
+    def getGemSpecCache(gem)
+        file = getGemSpecDir + '/' + gem.package + '-' + gem.latestVersion + '.gemspec'
+        spec = nil
+        if File.file?(file) then
+            open(file) do |f|
+                spec = Marshal.load(f.read)
+            end
+        end
+        spec
+    end
 
+    def getGemSpecDir
+        dir = "#{ENV['HOME']}/.gem/specs/"
+        begin
+            Dir.chdir(dir)
+            dirs = Dir['*']
+            while (dir = dirs.shift) && !File.directory?(dir) do end
+        end while dir
+        Dir.pwd
+    end
+        
     # slot
     def viewRdoc
         # make rdoc path
@@ -565,7 +623,7 @@ class MainWindow < KDE::MainWindow
         gem = @installedGemsTable.currentGem
         pkg = gem.package
         ver = gem.latestVersion
-        url = getGemDir + '/gems/' + pkg + '-' + ver 
+        url = getGemDir + '/gems/' + pkg + '-' + ver
         %x{dolphin '#{url}'}
     end
 
@@ -577,6 +635,7 @@ class MainWindow < KDE::MainWindow
         args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
         args.push( gem.package )
         @termilanWin.processStart('kdesu', args)
+        updateInstalledGemList
     end
 
     # slot
@@ -587,6 +646,7 @@ class MainWindow < KDE::MainWindow
         args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'uninstall' ]
         args.push( gem.package )
         @termilanWin.processStart('kdesu', args)
+        updateInstalledGemList
     end
 
 end
@@ -601,6 +661,7 @@ KDE::CmdLineArgs.init(ARGV, about)
 
 $app = KDE::Application.new
 args = KDE::CmdLineArgs.parsedArgs()
+$config = KDE::Global::config
 win = MainWindow.new
 $app.setTopWidget(win)
 

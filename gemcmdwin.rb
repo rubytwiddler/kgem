@@ -43,6 +43,7 @@ class ChooseListDlg < Qt::Dialog
         @table = Qt::TableWidget.new(0,1)
         @table.horizontalHeader.stretchLastSection = true
         @table.selectionMode = Qt::AbstractItemView::SingleSelection
+        @table.selectionBehavior = Qt::AbstractItemView::SelectRows
         @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
         @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
         connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
@@ -64,13 +65,12 @@ class ChooseListDlg < Qt::Dialog
         @msgLine.text = question
         @table.clearContents
         @table.rowCount = list.length
-        btm = list.length-1
         list.each_with_index do |l, r|
             item = Qt::TableWidgetItem.new(l)
             item.flags = 1 | 32     # Qt::GraphicsItem::ItemIsSelectable | Qt::GraphicsItem::ItemIsEnabled
             @table.setItem(r, 0, item)
         end
-        @table.setRangeSelected(Qt::TableWidgetSelectionRange.new(btm,0, btm,0), true)
+        @table.selectRow(list.length-1)
         ret = exec
         return nil, nil unless @table.currentItem && ret == Qt::Dialog::Accepted 
         row = @table.currentItem.row
@@ -144,16 +144,14 @@ class MainWindow < KDE::MainWindow
 #         args.unshift('--backtrace')
         @args = args
         
-        # read config
-        @config = KDE::Config.new(APP_NAME+'rc')
-
         self.windowTitle = 'Ruby Gem'
         createWidget
+        # initialize gem ui
+        @winUi = Gem::DefaultUserInteraction.ui = WinUI.new(self, @logWidget)
 
         # config
-        applyMainWindowSettings(KDE::Global.config.group("MainWindow"))
         setAutoSaveSettings()
-        
+
         Qt::Timer.singleShot(0, self, SLOT(:startCmd))
     end
 
@@ -161,7 +159,7 @@ class MainWindow < KDE::MainWindow
         @logWidget = Qt::TextBrowser.new
         @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
 
-        connect(@okBtn, SIGNAL(:clicked), $app, SLOT(:quit))
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:close))
 
         # layout
         lw = VBoxLayoutWidget.new do |w|
@@ -171,13 +169,11 @@ class MainWindow < KDE::MainWindow
         setCentralWidget( lw )
     end
 
-    
+
     # slot
     def startCmd
-        # initialize gem ui
-        @winUi = Gem::DefaultUserInteraction.ui = WinUI.new(self, @logWidget)
 
-        testWinUi
+#         testWinUi
         
         begin
             Gem::GemRunner.new.run @args
