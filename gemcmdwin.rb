@@ -15,6 +15,7 @@ end
 require 'ftools'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
+APP_DIR = File.expand_path(File.dirname(__FILE__))
 APP_VERSION = "0.1"
 
 # standard libs
@@ -26,6 +27,7 @@ require 'korundum4'
 #
 # my libraries and programs
 #
+$: << APP_DIR
 require "mylibs"
 
 

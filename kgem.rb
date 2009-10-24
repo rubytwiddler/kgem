@@ -9,8 +9,8 @@ $KCODE = 'Ku'
 require 'ftools'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
+APP_DIR = File.expand_path(File.dirname(__FILE__))
 APP_VERSION = "0.1"
-APP_DIR = File.dirname(__FILE__)
 
 # standard libs
 require 'fileutils'
@@ -23,8 +23,8 @@ require 'korundum4'
 #
 # my libraries and programs
 #
-require "mylibs"
-
+require "#{APP_DIR}/mylibs"
+require "#{APP_DIR}/settings"
 
 #--------------------------------------------------------------------
 #
@@ -267,13 +267,22 @@ class TerminalWin < Qt::DockWidget
         @textEdit.append(text)
     end
 
-    def processStart(cmd, args)
-        return unless @process.state == Qt::Process::NotRunning
+    def processStart(cmd, args, &block)
+        unless @process.state == Qt::Process::NotRunning
+            msg = "process is already running."
+            write(msg)
+            KDE::MessageBox::information(self, msg)
+            return
+        end
         @process.start(cmd, args)
+        @finishProc = block
     end
 
     def processfinished(exitCode, exitStatus)
         write( @process.readAll.data )
+        if @finishProc
+            @finishProc.call
+        end
     end
 
     def processReadyRead
@@ -307,31 +316,49 @@ class MainWindow < KDE::MainWindow
     slots   :updateAvailableGemList, :updateInstalledGemList
     slots   'itemClicked (QTableWidgetItem *)'
     slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
+    slots   :configureShortCut, :configureApp
 
     def initialize
         super(nil)
         setCaption(APP_NAME)
 
+        @actions = KDE::ActionCollection.new(self)
         createMenu
         createWidgets
-
-        setAutoSaveSettings()
+        createDlg
+        @actions.readSettings
+        setAutoSaveSettings
     end
 
     
     def createMenu
         updateListAction = KDE::Action.new(KDE::Icon.new('view-refresh'), 'Update List', self)
         updateListAction.setShortcut(KDE::Shortcut.new('Ctrl+R'))
+        @actions.addAction(updateListAction.text, updateListAction)
         quitAction = KDE::Action.new(KDE::Icon.new('exit'), '&Quit', self)
         quitAction.setShortcut(KDE::Shortcut.new('Ctrl+Q'))
-        fileMenu = KDE::Menu.new('&File', self)
+        @actions.addAction(quitAction.text, quitAction)
+        fileMenu = KDE::Menu.new(i18n('&File'), self)
         fileMenu.addAction(updateListAction)
         fileMenu.addAction(quitAction)
-
         # connect actions
         connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateAvailableGemList))
         connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
 
+        
+        # settings menu
+        configureShortCutAction = KDE::Action.new(KDE::Icon.new('configure-shortcuts'),
+                                                  i18n('Configure Shortcuts'), self)
+        configureAppAction = KDE::Action.new(KDE::Icon.new('configure'),
+                                              i18n('Configure Kgem'), self)
+        settingsMenu = KDE::Menu.new(i18n('&Settings'), self)
+        settingsMenu.addAction(configureShortCutAction)
+        settingsMenu.addAction(configureAppAction)
+        # connect actions
+        connect(configureShortCutAction, SIGNAL(:triggered), self, SLOT(:configureShortCut))
+        connect(configureAppAction, SIGNAL(:triggered), self, SLOT(:configureApp))
+        
+            
         # Help menu
         about = i18n(<<-ABOUT
 #{APP_NAME} #{APP_VERSION}
@@ -343,7 +370,7 @@ class MainWindow < KDE::MainWindow
         # insert menus in MenuBar
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
-        
+        menu.addMenu( settingsMenu )
         menu.addSeparator
         menu.addMenu( helpMenu.menu )
         setMenuBar(menu)
@@ -419,14 +446,32 @@ class MainWindow < KDE::MainWindow
         setCentralWidget(@gemsTab)
     end
 
+    def createDlg
+        @settingsDlg = SettingsDlg.new(self)
+    end
+    
+    
     #------------------------------------
     #
-    #
+    # virtual slot  
     def closeEvent(ev)
         @installedGemsTable.closeEvent(ev)
         @availableGemsTable.closeEvent(ev)
+        @actions.writeSettings
         saveMainWindowSettings($config.group("MainWindow"))
         super(ev)
+    end
+
+
+    #------------------------------------
+    # slot
+    def configureShortCut
+        KDE::ShortcutsDialog.configure(@actions)
+    end
+
+    # slot
+    def configureApp
+        @settingsDlg.exec
     end
 
     
@@ -634,8 +679,9 @@ class MainWindow < KDE::MainWindow
 
         args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
         args.push( gem.package )
-        @termilanWin.processStart('kdesu', args)
-        updateInstalledGemList
+        @termilanWin.processStart('kdesu', args) do
+            updateInstalledGemList
+        end
     end
 
     # slot
@@ -645,8 +691,9 @@ class MainWindow < KDE::MainWindow
         
         args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'uninstall' ]
         args.push( gem.package )
-        @termilanWin.processStart('kdesu', args)
-        updateInstalledGemList
+        @termilanWin.processStart('kdesu', args) do
+            updateInstalledGemList
+        end
     end
 
 end
@@ -667,6 +714,3 @@ $app.setTopWidget(win)
 
 win.show
 $app.exec
-
-
-
