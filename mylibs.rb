@@ -100,30 +100,53 @@ end
 class SettingsBase < KDE::ConfigSkeleton
     include Singleton
 
+    public
     # @sym : instance symbol to be added.
     def addBoolItem(sym, default=true)
         name = sym.to_s
-        valueMethod = 'value'
-        itemNewMethod = 'ItemBool'
-        defineItem(sym, valueMethod, itemNewMethod, default)
+        defineItem(sym, 'value', ItemBool, default)
     end
 
     def addStringItem(sym, default="")
-        valueMethod = 'toString'
-        itemNewMethod = 'ItemString'
-        defineItem(sym, valueMethod, itemNewMethod, default.squote)
+        defineItem(sym, 'toString', ItemString, default)
     end
 
     def addUrlItem(sym, default=KDE::Url.new)
         if default.kind_of? String then
             default = KDE::Url.new(default)
         end
-        valueMethod = 'value'
-        itemNewMethod = 'ItemUrl'
-        defineItem(sym, valueMethod, itemNewMethod, default)
+        defineItem(sym, 'value', ItemUrl, default)
     end
 
-    def defineItem(name, valueMethod, itemNewMethod, default)
+    def addStringListItem(sym, default="")
+        defineItem(sym, 'value', ItemStringList, default)
+    end
+
+    def addChoiceItem(name, list, default=0)
+        choices = makeChoices(list)
+        defineItemProperty(name, 'value')
+        item = ItemEnum.new(currentGroup, name.to_s, default, choices, default)
+        addItem(item)
+    end
+
+    protected
+    def makeChoices(list)
+        choices = []
+        list.each do |i|
+            c = ItemEnum::Choice.new
+            c.name = i
+            choices << c
+        end
+        choices
+    end
+
+    def defineItem(name, valueMethod, itemClass, default)
+        defineItemProperty(name, valueMethod)
+        item = itemClass.__send__(:new, currentGroup, name.to_s, default, default)
+        addItem(item)
+    end
+
+    def defineItemProperty(name, valueMethod)
         self.class.class_eval %Q{
             def #{name}
                 @#{name} = findItem('#{name}').property.#{valueMethod}
@@ -136,16 +159,19 @@ class SettingsBase < KDE::ConfigSkeleton
                 end
             end
 
+            def self.set#{name}(v)
+                s = self.instance
+                s.set#{name}(v)
+            end
+
             def #{name}=(v)
                 set#{name}(v)
             end
+
+            def self.#{name}=(v)
+                self.set#{name}(v)
+            end
         }
-        instance_variable_set "@#{name}",  default
-        item = eval %Q{
-            #{itemNewMethod}.new(currentGroup, '#{name}',
-                  @#{name}, @#{name})
-        }
-        addItem(item)
     end
 end
 

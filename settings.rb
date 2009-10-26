@@ -16,6 +16,37 @@ class Settings < SettingsBase
         addBoolItem(:installInSystemDirFlag, true)
         addBoolItem(:autoFetchDownloadFlag, true)
         addUrlItem(:autoFetchDownloadDir, KDE::GlobalSettings.downloadPath)
+        addChoiceItem(:browser4OpenDoc, %w{Konqueror Firefox Opera}, 0)
+        addChoiceItem(:filer4OpenDir, %w{Dolphin Konqueror Krusader}, 0)
+    end
+end
+
+class GeneralSettingsPage < Qt::Widget
+    def initialize(parent=nil)
+        super(parent)
+        createWidget
+    end
+
+    def createWidget
+        browserGroup = Qt::GroupBox.new("Document Browser")
+        @browserCombo = Qt::ComboBox.new
+        @browserCombo.addItems(%w{Konqueror Firefox Opera})
+        @browserCombo.editable = false
+        @filerCombo = Qt::ComboBox.new
+        @filerCombo.addItems(%w{Dolphin Konqueror Krusader})
+        @filerCombo.editable = false
+        
+        # objectNames
+        @browserCombo.objectName = 'kcfg_browser4OpenDoc'
+        @filerCombo.objectName = 'kcfg_filer4OpenDir'
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@browserCombo)
+            l.addWidget(@filerCombo)
+            l.addStretch
+        end
+        setLayout(lo)
     end
 end
 
@@ -53,7 +84,6 @@ class FolderSettingsPage < Qt::Widget
                        )
             l.addStretch
         end
-            
         setLayout(lo)
     end
     
@@ -66,6 +96,7 @@ end
 class SettingsDlg < KDE::ConfigDialog
     def initialize(parent)
         super(parent, "Settings", Settings.instance)
+        addPage(GeneralSettingsPage.new, i18n("General"), 'preferences-system')
         addPage(FolderSettingsPage.new, i18n("Folder"), 'folder')
     end
 end

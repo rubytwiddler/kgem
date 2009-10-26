@@ -677,9 +677,16 @@ class MainWindow < KDE::MainWindow
         gem = @availableGemsTable.currentGem
         return unless gem
 
-        args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
-        args.push( gem.package )
-        @termilanWin.processStart('kdesu', args) do
+        if Settings.installInSystemDirFlag then
+            args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
+            args.push( gem.package )
+            cmd = 'kdesu'
+        else
+            args = [ 'install' ]
+            args.push( gem.package )
+            cmd = "#{APP_DIR}/gemcmdwin.rb"
+        end
+        @termilanWin.processStart(cmd, args) do
             updateInstalledGemList
         end
     end
