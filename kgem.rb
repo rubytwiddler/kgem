@@ -306,6 +306,105 @@ class TerminalWin < Qt::DockWidget
 #     end
 end
 
+#--------------------------------------------------------------------
+#
+#
+class FileListWin < Qt::DockWidget
+    def initialize(parent)
+        super('Files', parent)
+        self.objectName = 'Files'
+        createWidget
+    end
+
+    def createWidget
+        @fileList = Qt::ListWidget.new
+        setWidget(@fileList)
+    end
+    
+    def setFiles(gem)
+        files = gem
+        @fileList.clear
+        @fileList.addItems(files)
+    end
+end
+
+#--------------------------------------------------------------------
+#
+#
+class GemHelpDlg < KDE::MainWindow
+    slots    'listSelected(QListWidgetItem*)'
+    GroupName = "GemHelpDlg"
+    
+    def initialize(parent=nil)
+        super(parent)
+        createWidget
+        iniHelpList
+        setAutoSaveSettings(GroupName)
+        readSettings
+    end
+
+    def createWidget
+        closeBtn = KDE::PushButton.new(KDE::Icon.new('dialog-close'), i18n('Close'))
+        @helpList = Qt::ListWidget.new
+        @helpText = Qt::PlainTextEdit.new
+        @helpText.readOnly = true
+
+        connect(@helpList, SIGNAL('itemClicked(QListWidgetItem*)'),
+                self, SLOT('listSelected(QListWidgetItem*)'))
+        connect(closeBtn, SIGNAL(:clicked), self, SLOT(:hide))
+        
+        # layout
+        @splitter = Qt::Splitter.new do |s|
+            s.addWidget(@helpList)
+            s.addWidget(@helpText)
+        end
+        @splitter.setStretchFactor(0,0)
+        @splitter.setStretchFactor(1,1)
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@splitter)
+            l.addWidgets(nil, closeBtn)
+        end
+        w = Qt::Widget.new
+        w.setLayout(lo)
+        setCentralWidget(w)
+    end
+
+    def iniHelpList
+        list = %x{gem help command}.inject([]) do |a, line|
+                    line =~ /^\s{4}(\w+)/ ? a << $1 : a
+        end
+        
+        @helpList.clear
+        @helpList.addItems(list)
+    end
+    
+
+    def listSelected(item)
+        text = %x{gem help #{item.text}}
+        @helpText.clear
+        @helpText.appendHtml("<pre>" + text + "</pre>")
+    end
+
+    # virtual function slot
+    def closeEvent(event)
+#         saveMainWindowSettings($config.group(GroupName))
+        writeSettings
+        super(event)
+    end
+
+    def readSettings
+        puts "read SplitterState"
+        config = $config.group(GroupName)
+        @splitter.restoreState(config.readEntry('SplitterState', @splitter.saveState))
+    end
+
+    def writeSettings
+        puts "write SplitterState"
+        config = $config.group(GroupName)
+        config.writeEntry('SplitterState', @splitter.saveState)
+    end
+end
+
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -313,10 +412,10 @@ end
 #
 #
 class MainWindow < KDE::MainWindow
-    slots   :updateAvailableGemList, :updateInstalledGemList
+    slots   :updateGemList, :updateAvailableGemList, :updateInstalledGemList
     slots   'itemClicked (QTableWidgetItem *)'
     slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
-    slots   :configureShortCut, :configureApp
+    slots   :configureShortCut, :configureApp, :gemCommandHelp
 
     def initialize
         super(nil)
@@ -341,9 +440,13 @@ class MainWindow < KDE::MainWindow
         fileMenu = KDE::Menu.new(i18n('&File'), self)
         fileMenu.addAction(updateListAction)
         fileMenu.addAction(quitAction)
+        gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
+        @actions.addAction(gemHelpAction.text, gemHelpAction)
+        
         # connect actions
-        connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateAvailableGemList))
+        connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateGemList))
         connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
+        connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
 
         
         # settings menu
@@ -366,6 +469,7 @@ class MainWindow < KDE::MainWindow
         ABOUT
         )
         helpMenu = KDE::HelpMenu.new(self, about)
+        helpMenu.menu.addAction(gemHelpAction)
 
         # insert menus in MenuBar
         menu = KDE::MenuBar.new
@@ -382,8 +486,11 @@ class MainWindow < KDE::MainWindow
         # dockable window
         @detailWin = DetailWin.new(self)
         addDockWidget(Qt::BottomDockWidgetArea, @detailWin)
+        @fileListWin = FileListWin.new(self)
+        tabifyDockWidget(@detailWin, @fileListWin)
         @termilanWin = TerminalWin.new(self)
-        tabifyDockWidget(@detailWin, @termilanWin)
+        tabifyDockWidget(@fileListWin, @termilanWin)
+
         
         # other
         @installedGemsTable = GemListTable.new('installed')
@@ -402,10 +509,20 @@ class MainWindow < KDE::MainWindow
                     @installedGemsTable, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
+        @filterInstalledBtn = KDE::PushButton.new('Filter') do |b|
+           connect(b, SIGNAL(:clicked)) do
+               @installedGemsTable.filterChanged(@filterInstalledLineEdit.text)
+           end
+        end
         @filterAvilableLineEdit = KDE::LineEdit.new do |w|
             connect(w,SIGNAL('returnPressed(const QString &)'),
                     @availableGemsTable, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
+        end
+        @filterAvailableBtn = KDE::PushButton.new('Filter') do |b|
+            connect(b, SIGNAL(:clicked)) do
+                @availableGemsTable.filterChanged(@filterAvilableLineEdit.text)
+            end
         end
         
         # connect
@@ -436,7 +553,7 @@ class MainWindow < KDE::MainWindow
         )
         @gemsTab.addTab(
             VBoxLayoutWidget.new do |w|
-                w.addWidget(@filterAvilableLineEdit)
+                w.addWidgets(@filterAvilableLineEdit, @filterAvailableBtn)
                 w.addWidget(@availableGemsTable)
                 w.addWidgetWithNilStretch(@updateAvailableBtn, nil, @installBtn)
             end ,
@@ -448,6 +565,7 @@ class MainWindow < KDE::MainWindow
 
     def createDlg
         @settingsDlg = SettingsDlg.new(self)
+        @gemHelpdlg = GemHelpDlg.new(self)
     end
     
     
@@ -455,10 +573,10 @@ class MainWindow < KDE::MainWindow
     #
     # virtual slot  
     def closeEvent(ev)
+        @actions.writeSettings
         @installedGemsTable.closeEvent(ev)
         @availableGemsTable.closeEvent(ev)
-        @actions.writeSettings
-        saveMainWindowSettings($config.group("MainWindow"))
+        @gemHelpdlg.closeEvent(ev)
         super(ev)
     end
 
@@ -474,12 +592,17 @@ class MainWindow < KDE::MainWindow
         @settingsDlg.exec
     end
 
+    # slot
+    def gemCommandHelp
+        @gemHelpdlg.show
+    end
+
     
     #------------------------------------
     # installed list
     # slot
     def updateInstalledGemList
-        updateGemList(:openLocalGemList, @installedGemsTable, STATUS_INSTALLED)
+        updateGemListTable(:openLocalGemList, @installedGemsTable, STATUS_INSTALLED)
     end
 
     def openLocalGemList
@@ -490,10 +613,20 @@ class MainWindow < KDE::MainWindow
     # available list
     # slot
     def updateAvailableGemList
-        updateGemList(:openRemoteGemList, @availableGemsTable, STATUS_NOTINSTALLED)
+        updateGemListTable(:openRemoteGemList, @availableGemsTable, STATUS_NOTINSTALLED)
     end
 
-    def updateGemList(openMethod, tbl, status)
+    # slot
+    def updateGemList
+        case @gemsTab.currentIndex
+        when 0
+            updateInstalledGemList
+        when 1
+            updateAvailableGemList
+        end
+    end
+
+    def updateGemListTable(openMethod, tbl, status)
         setupProgress4makeGem
         begin
             gemList = makeGemList(openMethod)
@@ -626,6 +759,7 @@ class MainWindow < KDE::MainWindow
             item.gem.spec = spec
         end
         @detailWin.setDetail( item.gem )
+        @fileListWin.setFiles( item.gem )
     end
     
     def getGemSpecCache(gem)
@@ -656,8 +790,10 @@ class MainWindow < KDE::MainWindow
         pkg = gem.package
         ver = gem.latestVersion
         url = getGemDir + '/doc/' + pkg + '-' + ver + '/rdoc/index.html'
-        %x{kfmclient openURL '#{url}'}
+        cmd = Settings.browserCmdForOpenDoc(url)
+        fork do exec(cmd) end
     end
+    
 
     def getGemDir
         $LOAD_PATH[0].sub(/site_ruby/, 'gems')
@@ -669,8 +805,10 @@ class MainWindow < KDE::MainWindow
         pkg = gem.package
         ver = gem.latestVersion
         url = getGemDir + '/gems/' + pkg + '-' + ver
-        %x{dolphin '#{url}'}
+        cmd = Settings.filerCmdForOpenDir(url)
+        fork do exec(cmd) end
     end
+    
 
     # slot
     def installGem

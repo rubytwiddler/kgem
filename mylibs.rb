@@ -27,6 +27,7 @@ class Qt::VBoxLayout
             end
         )
     end
+    alias :addWidgets :addWidgetWithNilStretch
     
     def addWidgetAtCenter(*w)
         w.unshift(nil)
@@ -60,6 +61,7 @@ class VBoxLayoutWidget < Qt::Widget
     def addWidgetWithNilStretch(*w)
         @layout.addWidgetWithNilStretch(*w)
     end
+    alias :addWidgets :addWidgetWithNilStretch
 
     def addWidgetAtRight(*w)
         @layout.addWidgetAtRight(*w)
@@ -129,6 +131,10 @@ class SettingsBase < KDE::ConfigSkeleton
         addItem(item)
     end
 
+    def [](name)
+        findItem(name)
+    end
+
     protected
     def makeChoices(list)
         choices = []
@@ -149,7 +155,12 @@ class SettingsBase < KDE::ConfigSkeleton
     def defineItemProperty(name, valueMethod)
         self.class.class_eval %Q{
             def #{name}
-                @#{name} = findItem('#{name}').property.#{valueMethod}
+                findItem('#{name}').property.#{valueMethod}
+            end
+
+            def self.#{name}
+                s = self.instance
+                s.#{name}
             end
 
             def set#{name}(v)

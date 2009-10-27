@@ -16,8 +16,34 @@ class Settings < SettingsBase
         addBoolItem(:installInSystemDirFlag, true)
         addBoolItem(:autoFetchDownloadFlag, true)
         addUrlItem(:autoFetchDownloadDir, KDE::GlobalSettings.downloadPath)
-        addChoiceItem(:browser4OpenDoc, %w{Konqueror Firefox Opera}, 0)
-        addChoiceItem(:filer4OpenDir, %w{Dolphin Konqueror Krusader}, 0)
+        addChoiceItem(:browserForOpenDoc, %w{Konqueror Firefox Opera}, 0)
+        addChoiceItem(:filerForOpenDir, %w{Dolphin Konqueror Krusader}, 0)
+    end
+
+    def self.filerCmdForOpenDir(url)
+        case Settings.filerForOpenDir
+        when 0  # dolphin
+            %Q{dolphin '#{url}'}
+        when 1  # konqueror
+            %Q{kfmclient openProfile filemanagement '#{url}'}
+        when 2  # krusader
+            %Q{krusader --left '#{url}'}
+        else
+            %Q{dolphin '#{url}'}
+        end
+    end
+
+    def self.browserCmdForOpenDoc(url)
+        case Settings.browserForOpenDoc
+        when 0  # konqueror
+            %Q{kfmclient openURL '#{url}'}
+        when 1  # firefox
+            %Q{firefox '#{url}'}
+        when 2  # opera
+            %Q{opera -newpage -remote openURL '#{url}'}
+        else
+            %Q{kfmclient openURL '#{url}'}
+        end
     end
 end
 
@@ -37,13 +63,16 @@ class GeneralSettingsPage < Qt::Widget
         @filerCombo.editable = false
         
         # objectNames
-        @browserCombo.objectName = 'kcfg_browser4OpenDoc'
-        @filerCombo.objectName = 'kcfg_filer4OpenDir'
+        @browserCombo.objectName = 'kcfg_browserForOpenDoc'
+        @filerCombo.objectName = 'kcfg_filerForOpenDir'
 
         # layout
+        flo = Qt::FormLayout.new do |l|
+            l.addRow('RDoc Browser', @browserCombo)
+            l.addRow('File Directory Browser', @filerCombo)
+        end
         lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@browserCombo)
-            l.addWidget(@filerCombo)
+            l.addLayout(flo)
             l.addStretch
         end
         setLayout(lo)
