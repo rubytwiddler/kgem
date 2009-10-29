@@ -213,6 +213,10 @@ class String
         "'" + self + "'"
     end
     alias   :squote :single_quote
+
+    def sql_escape
+        self.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
+    end
 end
 
 

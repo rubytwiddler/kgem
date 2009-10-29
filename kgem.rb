@@ -16,6 +16,7 @@ APP_VERSION = "0.1"
 require 'fileutils'
 require 'rubygems'
 require 'rubygems/specification'
+require 'sqlite3'
 
 # additional libs
 require 'korundum4'
@@ -43,9 +44,13 @@ class GemItem
     attr_accessor   :package, :version, :author, :rubyforge, :homepage, :platform
     attr_accessor   :summary, :status, :spec
     alias   :name :package
-    def initialize(pkg_and_ver)
-        pkg, ver = pkg_and_ver.split(/ /, 2)
-        ver.tr!('()', '')
+    def initialize(pkg_and_ver, ver=nil)
+        if ver.nil?
+            pkg, ver = pkg_and_ver.split(/ /, 2)
+            ver.tr!('()', '')
+        else
+            pkg = pkg_and_ver
+        end
         @package = pkg
         @version = ver
         @author = ''
@@ -321,8 +326,7 @@ class FileListWin < Qt::DockWidget
         setWidget(@fileList)
     end
     
-    def setFiles(gem)
-        files = gem
+    def setFiles(files)
         @fileList.clear
         @fileList.addItems(files)
     end
@@ -373,7 +377,7 @@ class GemHelpDlg < KDE::MainWindow
         list = %x{gem help command}.inject([]) do |a, line|
                     line =~ /^\s{4}(\w+)/ ? a << $1 : a
         end
-        
+        list.unshift('examples')
         @helpList.clear
         @helpList.addItems(list)
     end
@@ -387,19 +391,16 @@ class GemHelpDlg < KDE::MainWindow
 
     # virtual function slot
     def closeEvent(event)
-#         saveMainWindowSettings($config.group(GroupName))
         writeSettings
         super(event)
     end
 
     def readSettings
-        puts "read SplitterState"
         config = $config.group(GroupName)
         @splitter.restoreState(config.readEntry('SplitterState', @splitter.saveState))
     end
 
     def writeSettings
-        puts "write SplitterState"
         config = $config.group(GroupName)
         config.writeEntry('SplitterState', @splitter.saveState)
     end
@@ -442,11 +443,14 @@ class MainWindow < KDE::MainWindow
         fileMenu.addAction(quitAction)
         gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
         @actions.addAction(gemHelpAction.text, gemHelpAction)
+        installAction = KDE::Action.new('Install', self)
+        @actions.addAction(installAction.text, installAction)
         
         # connect actions
         connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateGemList))
         connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
         connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
+        connect(installAction, SIGNAL(:triggered), self, SLOT(:installGem))
 
         
         # settings menu
@@ -602,7 +606,13 @@ class MainWindow < KDE::MainWindow
     # installed list
     # slot
     def updateInstalledGemList
-        updateGemListTable(:openLocalGemList, @installedGemsTable, STATUS_INSTALLED)
+        setupProgressDlg
+        begin
+            updateGemListTable(:openLocalGemList, @installedGemsTable, STATUS_INSTALLED)
+        ensure
+            @progressDlg.dispose
+            @progressDlg = nil
+        end
     end
 
     def openLocalGemList
@@ -613,7 +623,17 @@ class MainWindow < KDE::MainWindow
     # available list
     # slot
     def updateAvailableGemList
-        updateGemListTable(:openRemoteGemList, @availableGemsTable, STATUS_NOTINSTALLED)
+        setupProgressDlg
+        begin
+#             updateGemListTable(:openRemoteGemList, @availableGemsTable, STATUS_NOTINSTALLED)
+#             updateGemListFromCache
+#             createGemDb
+            updateGemListFromDb
+            updateGemDiffrence
+        ensure
+            @progressDlg.dispose
+            @progressDlg = nil
+        end
     end
 
     # slot
@@ -627,39 +647,183 @@ class MainWindow < KDE::MainWindow
     end
 
     def updateGemListTable(openMethod, tbl, status)
-        setupProgress4makeGem
-        begin
-            gemList = makeGemList(openMethod)
-            return unless gemList
- 
-            sortFlag = tbl.sortingEnabled
-            tbl.sortingEnabled = false
-            
-            @progressDlg.labelText = "Makeing Gem Table"
-            @progressDlg.setRange(0, gemList.length)
-            @progressDlg.setValue(0)
- 
-            tbl.clearContents
-            tbl.rowCount = gemList.length
-            gemList.each_with_index do |g, r|
-                g.status = status
-                tbl.addPackage(r, g)
-                @progressDlg.setValue(r)
+        gemList = makeGemList(openMethod)
+        return unless gemList
+
+        sortFlag = tbl.sortingEnabled
+        tbl.sortingEnabled = false
+
+        @progressDlg.labelText = "Makeing Gem Table"
+        @progressDlg.setRange(0, gemList.length)
+        @progressDlg.setValue(0)
+
+        tbl.clearContents
+        tbl.rowCount = gemList.length
+        gemList.each_with_index do |g, r|
+            g.status = status
+            tbl.addPackage(r, g)
+            @progressDlg.setValue(r)
+        end
+
+        tbl.sortingEnabled = sortFlag
+    end
+
+    def updateGemListFromCache
+        tbl = @availableGemsTable
+        status = STATUS_NOTINSTALLED
+        
+        sortFlag = tbl.sortingEnabled
+        tbl.sortingEnabled = false
+        
+        Dir.chdir(getGemSpecDir)
+        files = Dir['*.gemspec']
+        tbl.clearContents
+        tbl.rowCount = files.length
+        row = 0
+        files.each do |f|
+            if f =~ /^(.+)-([\d\.]+)\.gemspec/ then
+                gem = GemItem.new($1, $2)
+#                 specStr = %x{gem specification #{gem.package} -b --marshal}
+                specStr = open(gem.package).read
+#                 print "#{gem.package}, "
+#                 STDOUT.flush
+                spec = Marshal.load(specStr)
+                gem.summary = spec.summary
+                gem.author = spec.authors
+                gem.rubyforge = spec.rubyforge_project
+                gem.homepage = spec.homepage
+                gem.platform = spec.original_platform
+                gem.status = status
+                tbl.addPackage(row, gem)
+                row += 1
             end
-            
-            tbl.sortingEnabled = sortFlag
-        ensure
-            @progressDlg.dispose
-            @progressDlg = nil
+        end
+
+        tbl.sortingEnabled = sortFlag
+    end
+
+    GEM_SPEC_DB = "#{ENV['HOME']}/.gem/gemspec.db"
+    def createGemDb
+        FileUtils.mkdir_p("#{ENV['HOME']}/.gem")
+        db = SQLite3::Database.new(GEM_SPEC_DB)
+
+        db.execute( "drop table gems" )
+        db.execute( <<-EOF
+create table gems (id INTEGER PRIMARY KEY,
+    rubygems_version TEXT,
+    specification_version TEXT,
+    name TEXT,
+    version TEXT,
+    date TEXT,
+    summary TEXT,
+    required_ruby_version TEXT,
+    required_rubygems_version TEXT,
+    original_platform TEXT,
+    dependencies TEXT,
+    rubyforge_project TEXT,
+    email TEXT,
+    authors TEXT,
+    description TEXT,
+    homepage TEXT,
+    has_rdoc TEXT,
+    new_platform TEXT,
+    licenses TEXT,
+    installed_version TEXT)
+        EOF
+        )
+
+        status = STATUS_NOTINSTALLED
+        gemList = makeGemList(:openRemoteGemList)
+        return unless gemList
+
+        @progressDlg.labelText = "Inserting Gem in DB"
+        @progressDlg.setRange(0, gemList.length)
+        @progressDlg.setValue(0)
+
+        gemList.each_with_index do |g, r|
+            g.status = status
+            name = g.package.sql_escape
+            summary = g.summary.sql_escape
+            version = g.version
+            puts "#{name} : summary #{summary}: ver #{version}"
+            STDOUT.flush
+            db.execute(<<-EOF
+insert into gems (name, summary, version)
+    values ('#{g.package.sql_escape}', '#{g.summary.sql_escape}', '#{g.version}')
+            EOF
+            )
+            @progressDlg.setValue(r)
         end
     end
 
 
-    def setupProgress4makeGem
-        progressHalf = GemReadRangeSize
+    def updateGemListFromDb
+        tbl = @availableGemsTable
+        status = STATUS_NOTINSTALLED
+
+        sortFlag = tbl.sortingEnabled
+        tbl.sortingEnabled = false
+        tbl.clearContents
+
+        db = SQLite3::Database.new(GEM_SPEC_DB)
+        size = db.get_first_value( "select count(*) from gems" ) .to_i
+        puts "total size :#{size}"
+        tbl.rowCount = size
+        
+        @progressDlg.labelText = "Update Gem Table from DB"
+        @progressDlg.setRange(0, size + 1)  # +1 for avoid closeing progressDlg
+        @progressDlg.setValue(0)
+
+        db.results_as_hash = true
+        i = 0
+        db.execute("select * from gems") do |r|
+            r['name']
+            gem = GemItem.new(r['name'], r['version'])
+#             print "#{gem.package}, "
+#             STDOUT.flush
+
+            gem.summary = r['summary']
+            gem.author = r['authors']
+            gem.rubyforge = r['rubyforge_project']
+            gem.homepage = r['homepage']
+            gem.platform = r['original_platform']
+            gem.status = status
+            tbl.addPackage(i, gem)
+            i += 1
+            @progressDlg.setValue(i)
+        end
+        tbl.sortingEnabled = sortFlag
+    end
+
+    def updateGemDiffrence
+        db = SQLite3::Database.new(GEM_SPEC_DB)
+        size = db.get_first_value( "select count(*) from gems" ) .to_i
+        
+        @progressDlg.labelText = "Differencial Update from Remote Data"
+        @progressDlg.setRange(0, size + 1)  # +1 for avoid closeing progressDlg
+        @progressDlg.setValue(0)
+        
+        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
+        i = 0
+        gemsStr.each do |line|
+            if line =~ /^([\w\-]+)\s+\((.+)\)/
+                pkg, vers= $1, $2.split(/,\s*/)
+                locVer = db.get_first_value("select version from gems where name='#{pkg}'")
+                if /#{locVer}/ !~ vers[0] then
+                    puts "updateing gem info pkg : #{pkg}, locVer :#{locVer}, latest ver:#{vers[0]}"
+
+    #             db.execute("update #{pkg} from gems")
+                end
+                @progressDlg.setValue(i)
+                i += 1
+            end
+        end
+    end
+    
+    def setupProgressDlg
         @progressDlg = Qt::ProgressDialog.new
         @progressDlg.labelText = "Processing Gem List"
-        @progressDlg.setRange(0, progressHalf)
+        @progressDlg.setRange(0, GemReadRangeSize)
         @progressDlg.forceShow
         @progressDlg.setWindowModality(Qt::WindowModal)
     end
@@ -677,13 +841,13 @@ class MainWindow < KDE::MainWindow
     end
 
     GEM_MAX = 5331  # not need accuracy. just for progress bar
-    # @param gemf : gem file
+    # @param gemf : gem data IO
     # @return gemList
     def parseGemFile(gemf)
         gemList = nil
         cnt = 0
         @progressDlg.labelText = "Parsing Gem Table"
-        @progressDlg.setRange(0, GEM_MAX)
+        @progressDlg.setRange(0, GEM_MAX+ 1)  # +1 for avoid closeing progressDlg
         @progressDlg.setValue(0)
 
         begin
@@ -731,8 +895,9 @@ class MainWindow < KDE::MainWindow
         tmpName = 'gemdata.raw'
         tmpPath = tmpdir + '/' + tmpName
         unless File.exist?(tmpPath) then
-            @progressDlg.forceShow
             @progressDlg.labelText = "Loading Gem List from Net."
+            @progressDlg.setRange(0, GemReadRangeSize + 1)  # +1 for avoid closeing progressDlg
+            @progressDlg.setValue(0)
             open(tmpPath, 'w') do |f|
                 cnt = 0
                 GemReadRange.each do |c|
@@ -759,7 +924,8 @@ class MainWindow < KDE::MainWindow
             item.gem.spec = spec
         end
         @detailWin.setDetail( item.gem )
-        @fileListWin.setFiles( item.gem )
+        files = %x{gem contents #{item.gem.package}}.split(/[\r\n]+/)
+        @fileListWin.setFiles( files )
     end
     
     def getGemSpecCache(gem)
