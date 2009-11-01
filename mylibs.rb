@@ -214,8 +214,19 @@ class String
     end
     alias   :squote :single_quote
 
+    def _chomp_null
+        gsub(/\0.*/, '')
+    end
+    
+    def sql_quote
+        str = _chomp_null
+        return 'NULL' if str.empty?
+        "'#{str.sql_escape}'"
+    end
+        
     def sql_escape
-        self.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
+        str = _chomp_null
+        str.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
     end
 end
 
