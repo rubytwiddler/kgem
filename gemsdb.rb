@@ -129,13 +129,23 @@ class GemsDb
             @progressDlg = nil
         end
     end
+    
+    def initializeAvailableGemList( tableWidget )
+        setupProgressDlg
+        begin
+            if checkCreateGemDb then
+                updateGemDiffrence
+            end
+            updateGemListFromDb( tableWidget )
+        ensure
+            @progressDlg.dispose
+            @progressDlg = nil
+        end
+    end
 
     def updateAvailableGemList( tableWidget )
         setupProgressDlg
         begin
-#             updateGemListTable(:makeGemListFromRemote, tableWidget, STATUS_NOTINSTALLED)
-#             updateGemListFromCache( tableWidget )
-#             createGemDbFromCache
             checkCreateGemDb
             updateGemDiffrence
             updateGemListFromDb( tableWidget )
@@ -163,10 +173,7 @@ class GemsDb
 
     
     protected
-    def openLocalGemList
-        open('|gem query -d -l')
-    end
-    
+
     def updateGemListTable(makeGemListMethod, tbl, status)
         gemList = self.method(makeGemListMethod).call
         return unless gemList
@@ -189,82 +196,14 @@ class GemsDb
         tbl.sortingEnabled = sortFlag
     end
 
-    def updateGemListFromCache( tbl )
-        status = STATUS_NOTINSTALLED
-
-        sortFlag = tbl.sortingEnabled
-        tbl.sortingEnabled = false
-
-        Dir.chdir(getGemSpecDir)
-        files = Dir['*.gemspec']
-        tbl.clearContents
-        tbl.rowCount = files.length
-        row = 0
-        files.each do |f|
-            if f =~ /^(.+)-([\d\.]+)\.gemspec/ then
-                gem = GemItem.new($1, $2)
-#                 specStr = %x{gem specification #{gem.package} -b --marshal}
-                specStr = open(gem.package).read
-                spec = Marshal.load(specStr)
-                gem.summary = spec.summary
-                gem.author = spec.authors
-                gem.rubyforge = spec.rubyforge_project
-                gem.homepage = spec.homepage
-                gem.platform = spec.original_platform
-                gem.status = status
-                tbl.addPackage(row, gem)
-                row += 1
-            end
-        end
-
-        tbl.sortingEnabled = sortFlag
-    end
-
-    # temporally 
-    def createGemDbFromCache
-        FileUtils.mkdir_p(File.dirname(GEM_SPEC_DB))
-        db = SQLite3::Database.new(GEM_SPEC_DB)
-
-        db.execute( "drop table gems" )
-        
-        db.execute( <<-EOF
-create table gems (id INTEGER PRIMARY KEY,
-    #{SPEC_PARAM.map{|s| s + ' TEXT'}.join(',')})
-        EOF
-        )
-
-        status = STATUS_NOTINSTALLED
-        gemList = makeGemListFromRemote
-        return unless gemList
-
-        @progressDlg.labelText = "Inserting Gem in DB"
-        @progressDlg.setRange(0, gemList.length)
-        @progressDlg.setValue(0)
-
-        gemList.each_with_index do |g, r|
-            g.status = status
-            name = g.package.sql_escape
-            summary = g.summary.sql_escape
-            version = g.version
-            puts "#{name} : summary #{summary}: ver #{version}"
-            STDOUT.flush
-            db.execute(<<-EOF
-insert into gems (name, summary, version)
-    values ('#{g.package.sql_escape}', '#{g.summary.sql_escape}', '#{g.version}')
-            EOF
-            )
-            @progressDlg.setValue(r)
-        end
-    end
-
     
     #
-    #
+    # @return : true if created.
     def checkCreateGemDb(forceCreate=false)
         if forceCreate then
             File.delete(GEM_SPEC_DB)
         end
-        return if File.exist?(GEM_SPEC_DB)
+        return false if File.exist?(GEM_SPEC_DB)
         
         FileUtils.mkdir_p(File.dirname(GEM_SPEC_DB))
         
@@ -275,6 +214,7 @@ create table gems (id INTEGER PRIMARY KEY,
 create unique index idx_gems_name on gems (name);
         EOF
         )
+        true
     end
 
 
@@ -303,12 +243,14 @@ create unique index idx_gems_name on gems (name);
             locVerStr = db.get_first_value("select version from gems where name='#{pkg}'")
             locVers = if locVerStr then locVerStr.split(/,\s*/) else [''] end
             if forceUpdate or /#{locVers[0]}/ !~ vers[0] then
-                puts "updateing gem info pkg:#{pkg}, ver:#{locVers[0]}, latest ver:#{vers[0]}"
+#                 puts "updateing gem info pkg:#{pkg}, ver:#{locVers[0]}, latest ver:#{vers[0]}"
                 spec = forceUpdate ? GemSpec.getGemSpecInCache(pkg) : nil
                 spec ||= GemSpec.getGemSpecInCacheWithUpdate(pkg)
                 return unless spec
 
-                puts "Can't load latest (#{vers[0]}) spec. loaded #{spec.version.to_s}" if spec.version.to_s != vers[0]
+                if spec.version.to_s != vers[0]
+                    puts "Can't load latest (#{vers[0]}) spec. loaded #{spec.version.to_s}, pkg :#{pkg}."
+                end
                 if locVers[0].empty?
                     db.execute("insert into gems (name) values ('#{pkg}')")
                 end
@@ -318,7 +260,7 @@ create unique index idx_gems_name on gems (name);
                 end.join(',')
                 sqlCmd = "update gems set #{valStr} where name='#{pkg}'"
                 db.execute( sqlCmd )
-                puts "  updated gem info pkg:#{pkg}, ver:#{spec.version.to_s}, latest ver:#{vers[0]}"
+                puts "updated gem info pkg:#{pkg}, ver:#{spec.version.to_s}, latest ver:#{vers[0]}"
             end
         end
     end
@@ -373,19 +315,11 @@ create unique index idx_gems_name on gems (name);
     end
 
 
-    def makeGemListFromLocal
-        makeGemList(:openLocalGemList)
-    end
-    
-    def makeGemListFromRemote
-        makeGemList(:openRemoteGemList)
-    end
-    
     # @return gemList
-    def makeGemList(openMethod)
+    def makeGemListFromLocal
         gemList = nil
         catch (:canceled) do
-            gemf = self.method(openMethod).call
+            gemf = open('|gem query -d -l')
             gemList = parseGemFile(gemf)
         end
         gemList
@@ -438,30 +372,5 @@ create unique index idx_gems_name on gems (name);
             gemf.close
         end
         gemList
-    end
-
-
-    # open cache data in tmp dir
-    def openRemoteGemList
-        tmpdir = Qt::Dir.tempPath + "/#{APP_NAME}/cache"
-        FileUtils.mkdir_p(tmpdir)
-        tmpName = 'gemdata.raw'
-        tmpPath = tmpdir + '/' + tmpName
-        unless File.exist?(tmpPath) then
-            @progressDlg.labelText = "Loading Gem List from Net."
-            @progressDlg.setRange(0, GemReadRangeSize + 1)  # +1 for avoid closeing progressDlg
-            @progressDlg.setValue(0)
-            open(tmpPath, 'w') do |f|
-                cnt = 0
-                GemReadRange.each do |c|
-                    throw :canceled if @progressDlg.wasCanceled
-                    @progressDlg.setValue(cnt)
-                    cnt += 1
-                    f.write(%x{gem query -n '^#{c}' -d -r})
-               end
-            end
-        end
-
-        open(tmpPath)
     end
 end

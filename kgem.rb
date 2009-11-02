@@ -133,7 +133,9 @@ class GemListTable < Qt::TableWidget
         regxs = /#{text.strip}/i
         rowCount.times do |r|
             gem = gemAtRow(r)
-            txt = gem.package + gem.summary + gem.author + gem.platform
+            txt = [ gem.package, gem.summary, gem.author, gem.platform ].inject("") do |s, t|
+                        t.nil? ? s : s + t
+            end
             if regxs =~ txt then
                 showRow(r)
             else
@@ -378,6 +380,7 @@ class MainWindow < KDE::MainWindow
     slots   'itemClicked (QTableWidgetItem *)'
     slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
     slots   :configureShortCut, :configureApp, :gemCommandHelp
+    slots   :initializeAtStart
 
     def initialize
         super(nil)
@@ -390,6 +393,8 @@ class MainWindow < KDE::MainWindow
         setupGems
         @actions.readSettings
         setAutoSaveSettings
+
+        Qt::Timer.singleShot(0, self, SLOT(:initializeAtStart))
     end
 
     
@@ -465,7 +470,7 @@ class MainWindow < KDE::MainWindow
         @installBtn = KDE::PushButton.new(KDE::Icon.new('list-add'), 'Install')
         @upgradeBtn = KDE::PushButton.new('Upgrade')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
-        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-about'), 'View RDoc')
+        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
         @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @updateAvailableBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
@@ -537,7 +542,12 @@ class MainWindow < KDE::MainWindow
     def setupGems
         @gemsDb = GemsDb.new
     end
-    
+
+    def initializeAtStart
+        updateInstalledGemList
+        @gemsDb.initializeAvailableGemList(@availableGemsTable)
+    end
+        
     #------------------------------------
     #
     # virtual slot  
@@ -615,6 +625,8 @@ class MainWindow < KDE::MainWindow
     def viewRdoc
         # make rdoc path
         gem = @installedGemsTable.currentGem
+        return unless gem
+        
         pkg = gem.package
         ver = gem.latestVersion
         url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
@@ -643,6 +655,8 @@ class MainWindow < KDE::MainWindow
     # slot
     def viewDir
         gem = @installedGemsTable.currentGem
+        return unless gem
+
         pkg = gem.package
         ver = gem.latestVersion
         url = addGemPath('/gems/' + pkg + '-' + ver)
