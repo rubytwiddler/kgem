@@ -134,7 +134,7 @@ class GemListTable < Qt::TableWidget
         rowCount.times do |r|
             gem = gemAtRow(r)
             txt = [ gem.package, gem.summary, gem.author, gem.platform ].inject("") do |s, t|
-                        t.nil? ? s : s + t
+                        t.nil? ? s : s + t.to_s
             end
             if regxs =~ txt then
                 showRow(r)
@@ -158,7 +158,11 @@ class DetailWin < Qt::DockWidget
 
     def createWidget
         @textPart = Qt::TextBrowser.new
-        @textPart.openExternalLinks = true
+        connect(@textPart, SIGNAL('anchorClicked(const QUrl&)')) do |url|
+            cmd = Settings.browserCmdForOpenDoc(url.toString)
+            fork do exec(cmd) end
+        end
+        @textPart.openLinks = false
         setWidget(@textPart)
     end
 
@@ -189,11 +193,20 @@ class DetailWin < Qt::DockWidget
         html.insertItem('Author', gem.author)
         html.insertUrl('Rubyforge', gem.rubyforge)
         html.insertUrl('homepage', gem.homepage)
-        html.insertUrl('platform', gem.platform)
+        html.insertUrl('platform', gem.platform) if gem.platform !~ /ruby/i
         html.insertHtml("</table><p>")
         html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
         
         @textPart.insertHtml(html)
+    end
+
+    # @param ex : Exception.
+    def setError(gem, ex)
+        @textPart.clear
+        @textPart.append(<<-EOF
+#{ex.to_s} : Can not get #{gem.package} gem specification data.
+        EOF
+        )
     end
 end
 
@@ -267,11 +280,6 @@ class TerminalWin < Qt::DockWidget
         puts "killing all process."
         @process.kill
     end
-    
-#     def keyPressEvent(event)
-#         print event.text
-#         @process.write(event.text) if @process
-#     end
 end
 
 #--------------------------------------------------------------------
@@ -611,7 +619,13 @@ class MainWindow < KDE::MainWindow
             spec = GemSpec.getGemSpecInCache(item.gem)
             unless spec then
                 specStr = %x{gem specification #{item.gem.package} -b --marshal}
-                spec = Marshal.load(specStr)
+                begin
+                    spec = Marshal.load(specStr)
+                rescue NoMethodError, ArgumentError => e
+                    # rescue from some error gems.
+                    @detailWin.setError(item.gem, e)
+                    return
+                end
             end
             item.gem.spec = spec
         end
@@ -623,10 +637,10 @@ class MainWindow < KDE::MainWindow
         
     # slot
     def viewRdoc
-        # make rdoc path
         gem = @installedGemsTable.currentGem
         return unless gem
         
+        # make rdoc path
         pkg = gem.package
         ver = gem.latestVersion
         url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
@@ -635,10 +649,7 @@ class MainWindow < KDE::MainWindow
     end
 
     def getGemPaths
-        unless @gemPath
-            @gemPath = %x{gem environment gempath}.chomp.split(/:/)
-        end
-        @gemPath
+        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
     end
     
     def addGemPath(path)

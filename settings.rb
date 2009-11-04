@@ -54,7 +54,6 @@ class GeneralSettingsPage < Qt::Widget
     end
 
     def createWidget
-        browserGroup = Qt::GroupBox.new("Document Browser")
         @browserCombo = Qt::ComboBox.new
         @browserCombo.addItems(%w{Konqueror Firefox Opera})
         @browserCombo.editable = false
@@ -68,7 +67,7 @@ class GeneralSettingsPage < Qt::Widget
 
         # layout
         flo = Qt::FormLayout.new do |l|
-            l.addRow('RDoc Browser', @browserCombo)
+            l.addRow('RDoc/Link Browser', @browserCombo)
             l.addRow('File Directory Browser', @filerCombo)
         end
         lo = Qt::VBoxLayout.new do |l|
