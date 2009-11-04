@@ -21,6 +21,10 @@ module PackageStatus
 end
 include PackageStatus
 
+#
+# gemItem is created from command line gem command output
+#  and used for inserting item to Qt::TableWidget.
+#
 class GemItem
     attr_accessor   :package, :version, :author, :rubyforge, :homepage, :platform
     attr_accessor   :summary, :status, :spec
@@ -46,7 +50,6 @@ class GemItem
     def latestVersion
         version.split(/,/, 2)[0]
     end
-
 end
 
 
@@ -123,7 +126,7 @@ class GemsDb
     def updateInstalledGemList( tableWidget )
         setupProgressDlg
         begin
-            updateGemListTable(:makeInstalledGemListFromCache, tableWidget, STATUS_INSTALLED)
+            updateInstalledGemListTableFromCache( tableWidget )
         ensure
             @progressDlg.dispose
             @progressDlg = nil
@@ -176,11 +179,14 @@ class GemsDb
         gem.rubyforge = r['rubyforge_project']
         gem.homepage  = r['homepage']
         gem.platform  = r['original_platform']
+        
+        inVer= r['installed_version']
+        gem.status = (inVer.nil? or inVer.empty?) ? STATUS_NOTINSTALLED : STATUS_INSTALLED
         gem
     end
 
-    def updateGemListTable(makeGemListMethod, tbl, status)
-        gemList = self.method(makeGemListMethod).call
+    def updateInstalledGemListTableFromCache( tbl )
+        gemList = makeInstalledGemListFromCache
         return unless gemList
 
         sortFlag = tbl.sortingEnabled
@@ -193,7 +199,7 @@ class GemsDb
         tbl.clearContents
         tbl.rowCount = gemList.length
         gemList.each_with_index do |g, r|
-            g.status = status
+            g.status = STATUS_INSTALLED
             tbl.addPackage(r, g)
             @progressDlg.setValue(r)
         end
@@ -225,15 +231,13 @@ create unique index idx_gems_name on gems (name);
 
     #
     def updateGemDiffrence(forceUpdate=false)
-        
-        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
-
         @progressDlg.labelText = "Differencial Update from Remote Data"
         @progressDlg.setRange(0, gemsStr.size + 1)  # +1 for avoid closeing progressDlg
         @progressDlg.setValue(0)
 
         db = SQLite3::Database.new(GEM_SPEC_DB)
         i = 0
+        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
         gemsStr.each do |line|
             _updateGemFromLine(db, line, forceUpdate)
             @progressDlg.setValue(i)
@@ -276,8 +280,6 @@ create unique index idx_gems_name on gems (name);
     #
     # @param tbl : Qt::TableWidget
     def updateGemListFromDb(tbl)
-        status = STATUS_NOTINSTALLED
-
         sortFlag = tbl.sortingEnabled
         tbl.sortingEnabled = false
         tbl.clearContents
@@ -295,7 +297,6 @@ create unique index idx_gems_name on gems (name);
         i = 0
         db.execute("select * from gems") do |r|
             gem = makeGemfromDbRow(r)
-            gem.status    = status
             tbl.addPackage(i, gem)
             i += 1
             @progressDlg.setValue(i)
@@ -323,18 +324,16 @@ create unique index idx_gems_name on gems (name);
         gemList
     end
 
-    GemReadRange = 'a'..'z'
-    GemReadRangeSize = GemReadRange.count
     GEM_MAX = 5500  # not need accuracy. just for progress bar
     # @return gemList
     def parseGemFile
-        gemf = open('|gem query -d -l')
-        gemList = nil
-        cnt = 0
         @progressDlg.labelText = "Parsing Gem Table"
         @progressDlg.setRange(0, GEM_MAX)
         @progressDlg.setValue(0)
-
+        
+        gemList = nil
+        cnt = 0
+        gemf = open('|gem query -d -l')
         begin
             summary = ''
             gem = nil
@@ -376,8 +375,9 @@ create unique index idx_gems_name on gems (name);
     def setupProgressDlg
         @progressDlg = Qt::ProgressDialog.new
         @progressDlg.labelText = "Processing Gem List"
-        @progressDlg.setRange(0, GemReadRangeSize)
+        @progressDlg.setRange(0, GEM_MAX)
         @progressDlg.forceShow
         @progressDlg.setWindowModality(Qt::WindowModal)
+        @progressDlg.setValue(0)
     end
 end
