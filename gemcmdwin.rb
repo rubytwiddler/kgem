@@ -27,8 +27,7 @@ require 'korundum4'
 #
 # my libraries and programs
 #
-$: << APP_DIR
-require "mylibs"
+require "#{APP_DIR}/mylibs"
 
 
 #--------------------------------------------------------------------------
@@ -317,7 +316,7 @@ end
 #--------------------------------------------------------------------------
 #
 #
-about = KDE::AboutData.new(APP_NAME, APP_NAME, KDE::ki18n(APP_NAME), APP_VERSION)
+about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION)
 KDE::CmdLineArgs.init([], about)
 
 $app = KDE::Application.new

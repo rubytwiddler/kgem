@@ -117,7 +117,7 @@ class GemsDb
         summary required_ruby_version required_rubygems_version original_platform
         dependencies rubyforge_project email authors description homepage has_rdoc
         new_platform licenses installed_version }
-    
+
     def initialize
         @updateTime = Time.at(0)
     end
@@ -132,7 +132,7 @@ class GemsDb
             @progressDlg = nil
         end
     end
-    
+
     def initializeAvailableGemList( tableWidget )
         setupProgressDlg
         begin
@@ -170,7 +170,7 @@ class GemsDb
     end
     alias :getGemInDb :getGem
 
-    
+
     protected
     def makeGemfromDbRow(r)
         gem = GemItem.new(r['name'], r['version'].to_s)
@@ -179,7 +179,7 @@ class GemsDb
         gem.rubyforge = r['rubyforge_project']
         gem.homepage  = r['homepage']
         gem.platform  = r['original_platform']
-        
+
         inVer= r['installed_version']
         gem.status = (inVer.nil? or inVer.empty?) ? STATUS_NOTINSTALLED : STATUS_INSTALLED
         gem
@@ -207,7 +207,7 @@ class GemsDb
         tbl.sortingEnabled = sortFlag
     end
 
-    
+
     #
     # @return : true if created.
     def checkCreateGemDb(forceCreate=false)
@@ -215,9 +215,9 @@ class GemsDb
             File.delete(GEM_SPEC_DB)
         end
         return false if File.exist?(GEM_SPEC_DB)
-        
+
         FileUtils.mkdir_p(File.dirname(GEM_SPEC_DB))
-        
+
         db = SQLite3::Database.new(GEM_SPEC_DB)
         db.execute( <<-EOF
 create table gems (id INTEGER PRIMARY KEY,
@@ -231,13 +231,16 @@ create unique index idx_gems_name on gems (name);
 
     #
     def updateGemDiffrence(forceUpdate=false)
-        @progressDlg.labelText = "Differencial Update from Remote Data"
-        @progressDlg.setRange(0, gemsStr.size + 1)  # +1 for avoid closeing progressDlg
+        @progressDlg.labelText = "Load query for all."
+        @progressDlg.setRange(0, 1)
         @progressDlg.setValue(0)
+        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
 
         db = SQLite3::Database.new(GEM_SPEC_DB)
         i = 0
-        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
+        @progressDlg.labelText = "Differencial Update from Remote Data"
+        @progressDlg.setRange(0, gemsStr.size + 1)  # +1 for avoid closeing progressDlg
+        @progressDlg.setValue(0)
         gemsStr.each do |line|
             _updateGemFromLine(db, line, forceUpdate)
             @progressDlg.setValue(i)
@@ -245,7 +248,7 @@ create unique index idx_gems_name on gems (name);
         end
     end
 
-    
+
     def _updateGemFromLine(db, line, forceUpdate)
         if line =~ /^([\w\-]+)\s+\((.+)\)/
             pkg, vers= $1, $2.split(/,\s*/)
@@ -275,7 +278,7 @@ create unique index idx_gems_name on gems (name);
     end
 
 
-    
+
     #
     #
     # @param tbl : Qt::TableWidget
@@ -330,7 +333,7 @@ create unique index idx_gems_name on gems (name);
         @progressDlg.labelText = "Parsing Gem Table"
         @progressDlg.setRange(0, GEM_MAX)
         @progressDlg.setValue(0)
-        
+
         gemList = nil
         cnt = 0
         gemf = open('|gem query -d -l')
@@ -378,6 +381,5 @@ create unique index idx_gems_name on gems (name);
         @progressDlg.setRange(0, GEM_MAX)
         @progressDlg.forceShow
         @progressDlg.setWindowModality(Qt::WindowModal)
-        @progressDlg.setValue(0)
     end
 end

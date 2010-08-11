@@ -2,8 +2,9 @@
 #   settings.
 #
 require 'singleton'
+require 'kio'
 #
-require 'mylibs'
+require "#{APP_DIR}/mylibs"
 
 
 class Settings < SettingsBase
@@ -60,7 +61,7 @@ class GeneralSettingsPage < Qt::Widget
         @filerCombo = Qt::ComboBox.new
         @filerCombo.addItems(%w{Dolphin Konqueror Krusader})
         @filerCombo.editable = false
-        
+
         # objectNames
         @browserCombo.objectName = 'kcfg_browserForOpenDoc'
         @filerCombo.objectName = 'kcfg_filerForOpenDir'
@@ -81,12 +82,12 @@ end
 
 class FolderSettingsPage < Qt::Widget
     slots   'autoFetchChanged(int)'
-    
+
     def initialize(parent=nil)
         super(parent)
         createWidget
     end
-    
+
     def createWidget
         @installInSystemCheckBox = Qt::CheckBox.new("Install in System Directory. (Root access Required)")
         @autoFetchCheckBox = Qt::CheckBox.new("auto download for fetch without asking location every time.")
@@ -95,12 +96,13 @@ class FolderSettingsPage < Qt::Widget
         @fileLine.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoFetchCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoFetchChanged(int)'))
-        
+
         # objectNames
+        #  'kcfg_' + class Settings's instance name.
         @installInSystemCheckBox.objectName = 'kcfg_installInSystemDirFlag'
         @autoFetchCheckBox.objectName = 'kcfg_autoFetchDownloadFlag'
         @fileLine.objectName = 'kcfg_autoFetchDownloadDir'
-        
+
         # layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@installInSystemCheckBox)
@@ -114,7 +116,7 @@ class FolderSettingsPage < Qt::Widget
         end
         setLayout(lo)
     end
-    
+
     # slot
     def autoFetchChanged(state)
         @fileLine.enabled = state == 2  # Qt::Checked
