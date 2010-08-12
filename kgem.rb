@@ -746,9 +746,9 @@ class MainWindow < KDE::MainWindow
         return unless gem
 
         if Settings.installInSystemDirFlag then
-            args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'install' ]
+            args = [ 'install' ]
             args.push( gem.package )
-            cmd = 'kdesu'
+            cmd = "#{APP_DIR}/gemcmdwin-super.rb"
         else
             args = [ 'install' ]
             args.push( gem.package )
