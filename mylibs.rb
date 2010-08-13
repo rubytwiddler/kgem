@@ -9,7 +9,14 @@ require 'korundum4'
 #
 class Qt::HBoxLayout
     def addWidgets(*w)
-        w.each do |e| self.addWidget(e) end
+        w.each do |i|
+            if i then
+                e = i.kind_of?(String) ? Qt::Label.new(i) : i
+                addWidget(e)
+            else
+                addStretch
+            end
+        end
     end
 end
 
@@ -17,26 +24,24 @@ class Qt::VBoxLayout
     def addWidgetWithNilStretch(*w)
         addLayout(
             Qt::HBoxLayout.new do |l|
-                w.each do |i|
-                    if i
-                        l.addWidget(i)
-                    else
-                        l.addStretch
-                    end
-                end
+                l.addWidgets(*w)
             end
         )
     end
     alias :addWidgets :addWidgetWithNilStretch
-    
+
     def addWidgetAtCenter(*w)
         w.unshift(nil)
-        w.push(nil)
         addWidgetWithNilStretch(*w)
     end
 
     def addWidgetAtRight(*w)
         w.unshift(nil)
+        addWidgetWithNilStretch(*w)
+    end
+
+    def addWidgetAtLeft(*w)
+        w.push(nil)
         addWidgetWithNilStretch(*w)
     end
 end
@@ -89,6 +94,10 @@ class HBoxLayoutWidget < Qt::Widget
 
     def addWidget(w)
         @layout.addWidget(w)
+    end
+
+    def addWidgets(*w)
+        @layout.addWidgets(*w)
     end
 
     def layout
@@ -148,7 +157,7 @@ class SettingsBase < KDE::ConfigSkeleton
 
     def defineItem(name, valueMethod, itemClass, default)
         defineItemProperty(name, valueMethod)
-        item = itemClass.__send__(:new, currentGroup, name.to_s, default, default)
+        item = itemClass.new(currentGroup, name.to_s, default, default)
         addItem(item)
     end
 
@@ -187,22 +196,61 @@ class SettingsBase < KDE::ConfigSkeleton
 end
 
 
+
 #--------------------------------------------------------------------------
 #
 #
-# class Hash
-#     alias   :old_blaket :[]
-#     def [](key)
-#         unless key.kind_of?(Regexp)
-#             return old_blaket(key)
-#         end
-# 
-#         retk, retv = self.find { |k,v| k =~ key }
-#         retv
-#     end
-# end
 
+module Enumerable
+    class Proxy
+        instance_methods.each { |m| undef_method(m) unless m.match(/^__/) }
+        def initialize(enum, method=:map)
+            @enum, @method = enum, method
+        end
+        def method_missing(method, *args, &block)
+            @enum.__send__(@method) {|o| o.__send__(method, *args, &block) }
+        end
+    end
 
+    def every
+        Proxy.new(self)
+    end
+end
+
+#
+class Hash
+    alias   old_blaket []
+    def [](key)
+        unless key.kind_of?(Regexp)
+            return old_blaket(key)
+        end
+
+        retk, retv = self.find { |k,v| k =~ key }
+        retv
+    end
+end
+
+class Qt::Action
+    def setVData(data)
+        setData(Qt::Variant.new(data))
+    end
+
+    def vData
+        self.data.toString
+    end
+end
+
+module Mime
+    def self.services(url)
+        mimeType = KDE::MimeType.findByUrl(KDE::Url.new(url))
+        mime = mimeType.name
+        services = KDE::MimeTypeTrader.self.query(mime)
+    end
+end
+
+#
+#
+#
 class String
     def double_quote
         '"' + self + '"'
@@ -217,33 +265,15 @@ class String
     def _chomp_null
         gsub(/\0.*/, '')
     end
-    
+
     def sql_quote
         str = _chomp_null
         return 'NULL' if str.empty?
         "'#{str.sql_escape}'"
     end
-        
+
     def sql_escape
         str = _chomp_null
         str.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
     end
 end
-
-
-module Enumerable
-    class Proxy
-        instance_methods.each { |m| undef_method(m) unless m.match(/^__/) }
-        def initialize(enum, method=:map)
-            @enum, @method = enum, method
-        end
-        def method_missing(method, *args, &block)
-            @enum.__send__(@method) {|o| o.__send__(method, *args, &block) }
-        end
-    end
-    
-    def every
-        Proxy.new(self)
-    end
-end
- 

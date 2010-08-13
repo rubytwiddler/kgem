@@ -745,28 +745,33 @@ class MainWindow < KDE::MainWindow
         gem = @availableGemsTable.currentGem
         return unless gem
 
-        if Settings.installInSystemDirFlag then
-            args = [ 'install' ]
-            args.push( gem.package )
-            cmd = "#{APP_DIR}/gemcmdwin-super.rb"
-        else
-            args = [ 'install' ]
-            args.push( gem.package )
-            cmd = "#{APP_DIR}/gemcmdwin.rb"
-        end
+        args = [ 'install' ]
+        args.push( gem.package )
+        cmd = if Settings.installInSystemDirFlag then
+                "#{APP_DIR}/gemcmdwin-super.rb"
+            else
+                "#{APP_DIR}/gemcmdwin.rb"
+            end
         @terminalWin.processStart(cmd, args) do
             updateInstalledGemList
         end
     end
+
 
     # slot
     def uninstallGem
         gem = @installedGemsTable.currentGem
         return unless gem
 
-        args = [ '-t', '-c', "#{APP_DIR}/gemcmdwin.rb", '--', 'uninstall' ]
+        args = [ 'uninstall' ]
         args.push( gem.package )
-        @terminalWin.processStart('kdesu', args) do
+        puts "installedLocal? : " + gem.installedLocal?.inspect
+        cmd = if gem.installedLocal? then
+                "#{APP_DIR}/gemcmdwin.rb"
+            else
+                "#{APP_DIR}/gemcmdwin-super.rb"
+            end
+        @terminalWin.processStart(cmd, args) do
             updateInstalledGemList
         end
     end

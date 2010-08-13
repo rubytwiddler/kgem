@@ -48,8 +48,13 @@ class GemItem
     end
 
     def latestVersion
-        version.split(/,/, 2)[0]
+        version.split(/,/, 2).first
     end
+
+    def installedLocal?
+        %x{ gem query -l -n '^#{@package}$' } =~ /#{@package}/
+    end
+
 end
 
 
@@ -62,7 +67,7 @@ class GemSpec
 
     def self.getGemSpecInCacheWithUpdate(pkg)
         # write gem in local.
-        %x{gem query -n '^#{pkg}' -d -r}
+        %x{gem query -n '^#{pkg}$' -d -r}
         # read gem from local
         GemSpec.getGemSpecInCache(pkg)
     end
@@ -174,8 +179,8 @@ class GemsDb
     protected
     def makeGemfromDbRow(r)
         gem = GemItem.new(r['name'], r['version'].to_s)
-        gem.summary   = r['summary']
-        gem.author    = [ r['authors'] ]
+        gem.summary   = r['summary'] or ''
+        gem.author    = [ r['authors'] ] or ''
         gem.rubyforge = r['rubyforge_project']
         gem.homepage  = r['homepage']
         gem.platform  = r['original_platform']
@@ -234,36 +239,39 @@ create unique index idx_gems_name on gems (name);
         @progressDlg.labelText = "Load query for all."
         @progressDlg.setRange(0, 1)
         @progressDlg.setValue(0)
-        gemsStr = %x{gem query -r -a}.split(/(\n|\r)/)
+        gemsStr = %x{gem list -r}.split(/[\n\r]+/)
 
         db = SQLite3::Database.new(GEM_SPEC_DB)
         i = 0
-        @progressDlg.labelText = "Differencial Update from Remote Data"
+        @progressDlg.labelText = "Differencial Update from Remote Data. #{gemsStr.size} gems"
         @progressDlg.setRange(0, gemsStr.size + 1)  # +1 for avoid closeing progressDlg
         @progressDlg.setValue(0)
         gemsStr.each do |line|
-            _updateGemFromLine(db, line, forceUpdate)
+            _updateGemFromLine(db, line, forceUpdate, i)
             @progressDlg.setValue(i)
             i += 1
         end
     end
 
 
-    def _updateGemFromLine(db, line, forceUpdate)
+    def _updateGemFromLine(db, line, forceUpdate, count)
         if line =~ /^([\w\-]+)\s+\((.+)\)/
             pkg, vers= $1, $2.split(/,\s*/)
+            latestVer = vers[0].split(/ /).first
             locVerStr = db.get_first_value("select version from gems where name='#{pkg}'")
             locVers = if locVerStr then locVerStr.split(/,\s*/) else [''] end
-            if forceUpdate or /#{locVers[0]}/ !~ vers[0] then
-#                 puts "updateing gem info pkg:#{pkg}, ver:#{locVers[0]}, latest ver:#{vers[0]}"
-                spec = forceUpdate ? GemSpec.getGemSpecInCache(pkg) : nil
-                spec ||= GemSpec.getGemSpecInCacheWithUpdate(pkg)
+            locVer = locVers[0].gsub(/ .*$/,'')
+
+            if forceUpdate or locVer.empty? or /#{locVer}/ !~ latestVer then
+#                 puts "  %5d  updateing gem info pkg:#{pkg}, ver:#{locVer}, latest ver:#{latestVer}" % [ count ]
+                spec = GemSpec.getGemSpecInCache(pkg)
+                spec ||= forceUpdate ? GemSpec.getGemSpecInCacheWithUpdate(pkg) : nil
                 return unless spec
 
-                if spec.version.to_s != vers[0]
-                    puts "Can't load latest (#{vers[0]}) spec. loaded #{spec.version.to_s}, pkg :#{pkg}."
+                if spec.version.to_s != latestVer
+                    puts "        Can't load latest (#{latestVer}) spec. loaded #{spec.version.to_s}, pkg :#{pkg}."
                 end
-                if locVers[0].empty?
+                if locVer.empty?
                     db.execute("insert into gems (name) values ('#{pkg}')")
                 end
 
@@ -272,8 +280,12 @@ create unique index idx_gems_name on gems (name);
                 end.join(',')
                 sqlCmd = "update gems set #{valStr} where name='#{pkg}'"
                 db.execute( sqlCmd )
-                puts "updated gem info pkg:#{pkg}, ver:#{spec.version.to_s}, latest ver:#{vers[0]}"
+                puts "  updated gem info pkg:#{pkg}, ver:#{spec.version.to_s}, latest ver:#{vers[0]}"
+            else
+#                 puts "  %5d     skip   gem info pkg:#{pkg}, ver:#{locVer}, latest ver:#{latestVer}" % [ count ]
             end
+        else
+            puts "      not package info line '#{line}'"
         end
     end
 
