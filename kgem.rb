@@ -17,6 +17,9 @@ require 'fileutils'
 require 'rubygems'
 require 'rubygems/specification'
 require 'sqlite3'
+require 'json'
+require 'uri'
+require 'net/http'
 
 # additional libs
 require 'korundum4'
@@ -24,9 +27,10 @@ require 'korundum4'
 #
 # my libraries and programs
 #
-require "#{APP_DIR}/mylibs"
-require "#{APP_DIR}/settings"
-require "#{APP_DIR}/gemsdb"
+# $:.unshift(APP_DIR)
+require "mylibs"
+require "settings"
+require "gemsdb"
 
 
 #--------------------------------------------------------------------
@@ -146,6 +150,153 @@ class GemListTable < Qt::TableWidget
 
 end
 
+
+#--------------------------------------------------------------------
+#
+#
+class SearchWin < Qt::Widget
+    attr_accessor :viewer
+    def initialize(parent=nil)
+        super(parent)
+
+        createWidget
+    end
+
+    def createWidget
+        @gemList = Qt::ListWidget.new
+        @searchLine = KDE::LineEdit.new do |w|
+            w.setClearButtonShown(true)
+        end
+
+        @searchBtn = KDE::PushButton.new(KDE::Icon.new('search'), i18n('Search'))
+        @fetchBtn = KDE::PushButton.new(KDE::Icon.new('down-arrow'), i18n('Fetch'))
+        @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), i18n('Install'))
+
+        # connect
+        connect(@searchBtn, SIGNAL(:clicked), self, SLOT(:search))
+        connect(@searchLine, SIGNAL(:returnPressed), self, SLOT(:search))
+        connect(@gemList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
+        connect(@fetchBtn, SIGNAL(:clicked), self, SLOT(:fetch))
+        connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
+
+        # layout
+        lo = Qt::VBoxLayout.new
+        lo.addWidgets('Search Gems:', @searchLine, @searchBtn)
+        lo.addWidget(@gemList)
+        lo.addWidgets(nil, @fetchBtn, @installBtn)
+        setLayout(lo)
+    end
+
+    slots  'itemClicked(QListWidgetItem *)'
+    def itemClicked(item)
+        gem = @gems[item.text]
+        @viewer.setDetail(gem) if @viewer and gem
+    end
+
+    slots  :search
+    def search
+        res = Net::HTTP.get(URI.parse( 'http://rubygems.org/api/v1/search.json?query=' + URI.escape(@searchLine.text)))
+        gems = JSON.parse(res)
+        @gems = {}
+        gems.each do |g| @gems[g['name']] = GemItem.parseHashGem(g) end
+        @gemList.clear
+        @gemList.addItems(@gems.keys)
+    end
+
+    def getCurrentGem
+        row = @gemList.currentRow
+        return nil unless row < @gemList.count
+        name = @gemList.item(row).text
+        @gems[name]
+    end
+
+    slots  :fetch
+    def fetch
+        gem = getCurrentGem
+        return gem unless gem
+
+        Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
+        %x{ gem fetch #{gem.package} }
+    end
+
+    slots  :install
+    def install
+        gem = getCurrentItem
+        return gem unless gem
+
+    end
+end
+
+#--------------------------------------------------------------------
+#
+#
+#
+class FetchWin < Qt::Widget
+    attr_accessor :dirty
+    def initialize(parent=nil)
+        super(parent)
+
+        @dirty = true
+        createWidget
+    end
+
+    def createWidget
+        @gemFileList = Qt::ListWidget.new
+        @filterLine = KDE::LineEdit.new do |w|
+            w.setClearButtonShown(true)
+        end
+        @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), 'Install')
+        @deleteBtn = KDE::PushButton.new(KDE::Icon.new('delete'), 'Delete')
+
+        #
+        connect(@gemFileList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
+        connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
+        connect(@deleteBtn, SIGNAL(:clicked), self, SLOT(:delete))
+
+        # layout
+        lo = Qt::VBoxLayout.new
+        lo.addWidgets('Filter:', @filterLine)
+        lo.addWidget(@gemFileList)
+        lo.addWidgets(nil, @installBtn, @deleteBtn)
+        setLayout(lo)
+    end
+
+    def getCurrentItem
+        row = @gemFileList.currentRow
+        return nil unless row < @gemFileList.count
+        @gemFileList.item(row)
+    end
+
+    # virtual slot function
+    def updateList
+        if @dirty then
+            puts "update fetched gem files."
+            dir = Settings.autoFetchDownloadDir.pathOrUrl
+            Dir.chdir(dir)
+            @gemFileList.clear
+            files = Dir['*.gem']
+            files.each do |f|
+                @gemFileList.addItem(f)
+            end
+            @dirty = false
+        end
+    end
+
+    slots  'itemClicked(QListWidgetItem *)'
+    def itemClicked(item)
+    end
+
+    slots  :install
+    def install
+
+    end
+
+    slots :delete
+    def delete
+    end
+end
+
+
 #--------------------------------------------------------------------
 #
 #
@@ -195,7 +346,9 @@ class DetailWin < Qt::DockWidget
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform) if gem.platform !~ /ruby/i
         html.insertHtml("</table><p>")
-        html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
+        if gem.spec then
+            html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
+        end
 
         @textPart.insertHtml(html)
     end
@@ -412,21 +565,20 @@ class RepositoryWidget < Qt::Widget
 
     def createWidget
         @addGithubCheckBox = Qt::CheckBox.new(i18n("add http://gems.github.com to repository"))
-        @addGemcutterCheckBox = Qt::CheckBox.new(i18n("add http://gemcutter.com to repository"))
         appyBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok-apply'), i18n('Apply'))
         makeMirrorBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), i18n('Make Mirror'))
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@addGithubCheckBox)
-            l.addWidget(@addGemcutterCheckBox)
             l.addWidgets(makeMirrorBtn, nil)
             l.addStretch
             l.addWidgets(appyBtn, nil)
         end
         setLayout(lo)
     end
- end
+end
+
 
 
 #--------------------------------------------------------------------
@@ -435,7 +587,7 @@ class RepositoryWidget < Qt::Widget
 #
 #
 class MainWindow < KDE::MainWindow
-    slots   :updateGemList, :updateAvailableGemList, :updateInstalledGemList
+    slots   :updateGemList, :updateInstalledGemList
     slots   'itemClicked (QTableWidgetItem *)'
     slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
     slots   :configureShortCut, :configureApp, :gemCommandHelp
@@ -532,18 +684,18 @@ class MainWindow < KDE::MainWindow
         @terminalWin = TerminalWin.new(self)
         tabifyDockWidget(@fileListWin, @terminalWin)
         @toolsWin = ToolsWin.new(self)
+        @searchWin = SearchWin.new(self)
+        @searchWin.viewer = @detailWin
+        @fetchWin = FetchWin.new(self)
 
 
         # other
         @installedGemsTable = GemListTable.new('installed')
-        @availableGemsTable = GemListTable.new('available')
 
-        @installBtn = KDE::PushButton.new(KDE::Icon.new('list-add'), 'Install')
         @upgradeBtn = KDE::PushButton.new('Upgrade')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
         @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
         @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
-        @updateAvailableBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
 
         @filterInstalledLineEdit = KDE::LineEdit.new do |w|
@@ -551,38 +703,20 @@ class MainWindow < KDE::MainWindow
                     @installedGemsTable, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
-        @filterInstalledBtn = KDE::PushButton.new('Filter') do |b|
-           connect(b, SIGNAL(:clicked)) do
-               @installedGemsTable.filterChanged(@filterInstalledLineEdit.text)
-           end
-        end
-        @filterAvilableLineEdit = KDE::LineEdit.new do |w|
-            connect(w,SIGNAL('returnPressed(const QString &)'),
-                    @availableGemsTable, SLOT('filterChanged(const QString &)'))
-            w.setClearButtonShown(true)
-        end
-        @filterAvailableBtn = KDE::PushButton.new('Filter') do |b|
-            connect(b, SIGNAL(:clicked)) do
-                @availableGemsTable.filterChanged(@filterAvilableLineEdit.text)
-            end
-        end
 
         # connect
         connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
         connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
-        connect(@installBtn, SIGNAL(:clicked), self, SLOT(:installGem))
         connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
         connect(@updateInstalledBtn, SIGNAL(:clicked),
                 self, SLOT(:updateInstalledGemList))
-        connect(@updateAvailableBtn, SIGNAL(:clicked),
-                self, SLOT(:updateAvailableGemList))
         connect(@installedGemsTable, SIGNAL('itemClicked (QTableWidgetItem *)'),
-                    self, SLOT('itemClicked (QTableWidgetItem *)'))
-        connect(@availableGemsTable, SIGNAL('itemClicked (QTableWidgetItem *)'),
                     self, SLOT('itemClicked (QTableWidgetItem *)'))
 
         # layout
-        @mainTab = KDE::TabWidget.new
+        @mainTab = KDE::TabWidget.new do |w|
+            connect(w, SIGNAL('currentChanged(int)'), self, SLOT('tabChanged(int)'))
+        end
         @mainTab.addTab(
             VBoxLayoutWidget.new do |w|
                 w.addWidget(@filterInstalledLineEdit)
@@ -593,14 +727,8 @@ class MainWindow < KDE::MainWindow
             end ,
             'Installed Gems'
         )
-        @mainTab.addTab(
-            VBoxLayoutWidget.new do |w|
-                w.addWidgets(@filterAvilableLineEdit, @filterAvailableBtn)
-                w.addWidget(@availableGemsTable)
-                w.addWidgetWithNilStretch(@updateAvailableBtn, nil, @installBtn)
-            end ,
-            'Available Gems'
-        )
+        @mainTab.addTab(@searchWin, i18n("Search"))
+        @mainTab.addTab(@fetchWin, i18n("Fetched Gems"))
         @mainTab.addTab(@toolsWin, i18n("Tools"))
 
         setCentralWidget(@mainTab)
@@ -617,7 +745,6 @@ class MainWindow < KDE::MainWindow
 
     def initializeAtStart
         updateInstalledGemList
-        @gemsDb.initializeAvailableGemList(@availableGemsTable)
     end
 
     #------------------------------------
@@ -626,7 +753,6 @@ class MainWindow < KDE::MainWindow
     def closeEvent(ev)
         @actions.writeSettings
         @installedGemsTable.closeEvent(ev)
-        @availableGemsTable.closeEvent(ev)
         @gemHelpdlg.closeEvent(ev)
         super(ev)
     end
@@ -649,6 +775,14 @@ class MainWindow < KDE::MainWindow
     end
 
 
+    slots 'tabChanged(int)'
+    def tabChanged(index)
+        puts "tabChanged check"
+        if @mainTab.widget(index) == @fetchWin then
+            @fetchWin.updateList
+        end
+    end
+
     #------------------------------------
     # installed list
     # slot
@@ -658,12 +792,6 @@ class MainWindow < KDE::MainWindow
 
 
 
-    #------------------------------------
-    # available list
-    # slot
-    def updateAvailableGemList
-        @gemsDb.updateAvailableGemList(@availableGemsTable)
-    end
 
 
     # slot
@@ -671,8 +799,6 @@ class MainWindow < KDE::MainWindow
         case @mainTab.currentIndex
         when 0
             updateInstalledGemList
-        when 1
-            updateAvailableGemList
         end
     end
 
@@ -751,6 +877,7 @@ class MainWindow < KDE::MainWindow
                 "#{APP_DIR}/gemcmdwin-super.rb"
             else
                 "#{APP_DIR}/gemcmdwin.rb"
+                args.push( '--user-install' )
             end
         @terminalWin.processStart(cmd, args) do
             updateInstalledGemList

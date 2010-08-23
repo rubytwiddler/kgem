@@ -27,8 +27,9 @@ include PackageStatus
 #
 class GemItem
     attr_accessor   :package, :version, :author, :rubyforge, :homepage, :platform
-    attr_accessor   :summary, :status, :spec
+    attr_accessor   :summary, :status, :spec, :downloads
     alias   :name :package
+    alias   :authors :author
     def initialize(pkg_and_ver, ver=nil)
         if ver.nil?
             pkg, ver = pkg_and_ver.split(/ /, 2)
@@ -45,6 +46,7 @@ class GemItem
         @summary = ''
         @status = STATUS_NOTINSTALLED
         @spec = nil
+        @downloads = 0
     end
 
     def latestVersion
@@ -55,6 +57,14 @@ class GemItem
         %x{ gem query -l -n '^#{@package}$' } =~ /#{@package}/
     end
 
+    def self.parseHashGem(hGem)
+        gem = self.new(hGem['name'], hGem['version'])
+        gem.author = hGem['authors']
+        gem.homepage = hGem['homepage_uri']
+        gem.downloads = hGem['downloads']
+        gem.summary = hGem['info']
+        gem
+    end
 end
 
 
