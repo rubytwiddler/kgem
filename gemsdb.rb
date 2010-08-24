@@ -65,6 +65,15 @@ class GemItem
         gem.summary = hGem['info']
         gem
     end
+
+    def self.parseGemSpec(spec)
+        gem = self.new(spec.name, spec.version)
+        gem.author = spec.authors or ''
+        gem.homepage = spec.homepage or ''
+        gem.summary = spec.summary or ''
+        gem.spec = spec
+        gem
+    end
 end
 
 

@@ -155,7 +155,6 @@ end
 #
 #
 class SearchWin < Qt::Widget
-    attr_accessor :viewer
     def initialize(parent=nil)
         super(parent)
 
@@ -169,28 +168,30 @@ class SearchWin < Qt::Widget
         end
 
         @searchBtn = KDE::PushButton.new(KDE::Icon.new('search'), i18n('Search'))
-        @fetchBtn = KDE::PushButton.new(KDE::Icon.new('down-arrow'), i18n('Fetch'))
+        @downloadBtn = KDE::PushButton.new(KDE::Icon.new('down-arrow'), i18n('Download'))
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), i18n('Install'))
 
         # connect
         connect(@searchBtn, SIGNAL(:clicked), self, SLOT(:search))
         connect(@searchLine, SIGNAL(:returnPressed), self, SLOT(:search))
         connect(@gemList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
-        connect(@fetchBtn, SIGNAL(:clicked), self, SLOT(:fetch))
+        connect(@downloadBtn, SIGNAL(:clicked), self, SLOT(:fetch))
         connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
 
         # layout
         lo = Qt::VBoxLayout.new
         lo.addWidgets('Search Gems:', @searchLine, @searchBtn)
         lo.addWidget(@gemList)
-        lo.addWidgets(nil, @fetchBtn, @installBtn)
+        lo.addWidgets(nil, @downloadBtn, @installBtn)
         setLayout(lo)
     end
 
+    attr_accessor :gemViewer
     slots  'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
         gem = @gems[item.text]
-        @viewer.setDetail(gem) if @viewer and gem
+        @gemViewer.setDetail(gem) if @gemViewer and gem
+        @gemViewer.setFiles(nil)
     end
 
     slots  :search
@@ -221,7 +222,7 @@ class SearchWin < Qt::Widget
 
     slots  :install
     def install
-        gem = getCurrentItem
+        gem = getCurrentGem
         return gem unless gem
 
     end
@@ -231,22 +232,25 @@ end
 #
 #
 #
-class FetchWin < Qt::Widget
+class DownloadWin < Qt::Widget
     attr_accessor :dirty
     def initialize(parent=nil)
         super(parent)
 
         @dirty = true
+        @filePathMap = {}
         createWidget
     end
 
     def createWidget
         @gemFileList = Qt::ListWidget.new
         @filterLine = KDE::LineEdit.new do |w|
+            connect(w,SIGNAL('textChanged(const QString &)'),
+                    self, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), 'Install')
-        @deleteBtn = KDE::PushButton.new(KDE::Icon.new('delete'), 'Delete')
+        @deleteBtn = KDE::PushButton.new(KDE::Icon.new('edit-delete'), 'Delete')
 
         #
         connect(@gemFileList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
@@ -270,20 +274,39 @@ class FetchWin < Qt::Widget
     # virtual slot function
     def updateList
         if @dirty then
-            puts "update fetched gem files."
-            dir = Settings.autoFetchDownloadDir.pathOrUrl
-            Dir.chdir(dir)
+            def allFilesInDir(dir)
+                exDir = File.expand_path(dir)
+                Dir.chdir(dir)
+                files = Dir['*.gem']
+                files.each do |f|
+                    @filePathMap[f] = File.join(exDir, f)
+                end
+                files
+            end
+            @filePathMap = {}
+            files = allFilesInDir(Settings.autoFetchDownloadDir.pathOrUrl) +
+                allFilesInDir("/usr/lib/ruby/gems/1.8/cache/") +
+                allFilesInDir("#{ENV['HOME']}/.gem/ruby/1.8/cache/")
+
             @gemFileList.clear
-            files = Dir['*.gem']
-            files.each do |f|
+            files.sort.each do |f|
                 @gemFileList.addItem(f)
             end
             @dirty = false
         end
     end
 
+    attr_accessor :gemViewer
     slots  'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
+        filePath = @filePathMap[item.text]
+        files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
+        files.unshift
+        @gemViewer.setFiles( files )
+
+        spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
+        gem = GemItem::parseGemSpec(spec)
+        @gemViewer.setDetail(gem)
     end
 
     slots  :install
@@ -293,6 +316,20 @@ class FetchWin < Qt::Widget
 
     slots :delete
     def delete
+    end
+
+    slots 'filterChanged(const QString &)'
+    def filterChanged(text)
+        if text.nil? or text.empty? then
+            regxs = nil
+        else
+            regxs = /#{text.strip}/i
+        end
+
+        @gemFileList.count.times do |idx|
+            item = @gemFileList.item(idx)
+            item.setHidden(!(regxs.nil? or regxs =~ item.text))
+        end
     end
 end
 
@@ -337,6 +374,7 @@ class DetailWin < Qt::DockWidget
     public
     def setDetail(gem)
         @textPart.clear
+        return unless gem
         html = HtmlStr.new
         html.insertHtml("<font size='+1'>#{gem.package}</font><br>")
         html.insertHtml(gem.summary.gsub(/\n/,'<br>'))
@@ -346,7 +384,7 @@ class DetailWin < Qt::DockWidget
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform) if gem.platform !~ /ruby/i
         html.insertHtml("</table><p>")
-        if gem.spec then
+        if gem.spec and gem.spec.description then
             html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
         end
 
@@ -360,6 +398,26 @@ class DetailWin < Qt::DockWidget
 #{ex.to_s} : Can not get #{gem.package} gem specification data.
         EOF
         )
+    end
+end
+#--------------------------------------------------------------------
+#
+#
+class FileListWin < Qt::DockWidget
+    def initialize(parent)
+        super('Files', parent)
+        self.objectName = 'Files'
+        createWidget
+    end
+
+    def createWidget
+        @fileList = Qt::ListWidget.new
+        setWidget(@fileList)
+    end
+
+    def setFiles(files)
+        @fileList.clear
+        @fileList.addItems(files) if files
     end
 end
 
@@ -435,26 +493,6 @@ class TerminalWin < Qt::DockWidget
     end
 end
 
-#--------------------------------------------------------------------
-#
-#
-class FileListWin < Qt::DockWidget
-    def initialize(parent)
-        super('Files', parent)
-        self.objectName = 'Files'
-        createWidget
-    end
-
-    def createWidget
-        @fileList = Qt::ListWidget.new
-        setWidget(@fileList)
-    end
-
-    def setFiles(files)
-        @fileList.clear
-        @fileList.addItems(files)
-    end
-end
 
 #--------------------------------------------------------------------
 #
@@ -653,10 +691,11 @@ class MainWindow < KDE::MainWindow
         # Help menu
         about = i18n(<<-ABOUT
 #{APP_NAME} #{APP_VERSION}
-    Ruby Gem KDE GUI
+    Ruby Gems Tool on KDE GUI
         ABOUT
         )
         helpMenu = KDE::HelpMenu.new(self, about)
+        helpMenu.menu.addSeparator
         helpMenu.menu.addAction(gemHelpAction)
 
         # file menu
@@ -668,12 +707,23 @@ class MainWindow < KDE::MainWindow
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
         menu.addMenu( settingsMenu )
-        menu.addSeparator
         menu.addMenu( helpMenu.menu )
         setMenuBar(menu)
     end
 
 
+    class DockGemViewer
+        def initialize(detailView, filesView)
+            @detailView = detailView
+            @filesView = filesView
+        end
+        def setDetail(gem)
+            @detailView.setDetail(gem)
+        end
+        def setFiles(files)
+            @filesView.setFiles(files)
+        end
+    end
 
     def createWidgets
         # dockable window
@@ -683,10 +733,15 @@ class MainWindow < KDE::MainWindow
         tabifyDockWidget(@detailWin, @fileListWin)
         @terminalWin = TerminalWin.new(self)
         tabifyDockWidget(@fileListWin, @terminalWin)
+
+        gemViewer = DockGemViewer.new(@detailWin, @fileListWin)
         @toolsWin = ToolsWin.new(self)
-        @searchWin = SearchWin.new(self)
-        @searchWin.viewer = @detailWin
-        @fetchWin = FetchWin.new(self)
+        @searchWin = SearchWin.new(self) do |w|
+            w.gemViewer = gemViewer
+        end
+        @downloadWin = DownloadWin.new(self) do |w|
+            w.gemViewer = gemViewer
+        end
 
 
         # other
@@ -719,7 +774,7 @@ class MainWindow < KDE::MainWindow
         end
         @mainTab.addTab(
             VBoxLayoutWidget.new do |w|
-                w.addWidget(@filterInstalledLineEdit)
+                w.addWidgets('Filter:', @filterInstalledLineEdit)
                 w.addWidget(@installedGemsTable)
                 w.addWidgetWithNilStretch(@updateInstalledBtn, nil,
                                           @viewDirBtn, @viewRdocBtn,
@@ -728,7 +783,7 @@ class MainWindow < KDE::MainWindow
             'Installed Gems'
         )
         @mainTab.addTab(@searchWin, i18n("Search"))
-        @mainTab.addTab(@fetchWin, i18n("Fetched Gems"))
+        @mainTab.addTab(@downloadWin, i18n("Downloaded Gems"))
         @mainTab.addTab(@toolsWin, i18n("Tools"))
 
         setCentralWidget(@mainTab)
@@ -777,9 +832,8 @@ class MainWindow < KDE::MainWindow
 
     slots 'tabChanged(int)'
     def tabChanged(index)
-        puts "tabChanged check"
-        if @mainTab.widget(index) == @fetchWin then
-            @fetchWin.updateList
+        if @mainTab.widget(index) == @downloadWin then
+            @downloadWin.updateList
         end
     end
 
