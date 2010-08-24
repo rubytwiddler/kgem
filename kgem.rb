@@ -24,6 +24,7 @@ require 'shellwords'
 
 # additional libs
 require 'korundum4'
+require 'ktexteditor'
 
 #
 # my libraries and programs
@@ -165,25 +166,48 @@ class PreviewWin < Qt::Widget
 
     def createWidget
         @titleLabel = Qt::Label.new('')
-        @textBrowser = KDE::TextBrowser.new
+        @textEditor = KTextEditor::EditorChooser::editor
         @closeBtn = KDE::PushButton.new(KDE::Icon.new('dialog-close'), \
                                         i18n('Close')) do |w|
             connect(w, SIGNAL(:clicked), self, SLOT(:hide))
         end
 
+        @document = @textEditor.createDocument(nil)
+        @textView = @document.createView(self)
 
         # layout
         lo = Qt::VBoxLayout.new
         lo.addWidgets('File Name:', @titleLabel, nil)
-        lo.addWidget(@textBrowser)
+        lo.addWidget(@textView)
         lo.addWidgets(nil, @closeBtn)
         setLayout(lo)
     end
 
+    ModeTbl = { /\.rb$/ => 'Ruby',
+                /\.(h|c|cpp)$/ => 'C++',
+                /\.json$/ => 'JSON',
+                /\.html?$/ => 'HTML',
+                /\.xml$/ => 'XML',
+                /\.(yml|yaml)$/ => 'YAML',
+                /\.java$/ => 'Java',
+                /\.js$/ => 'JavaScript',
+                /\.css$/ => 'CSS',
+                /\.py$/ => 'Python',
+                /\.txt$/ => 'Normal',
+                /^(readme|.*license|todo)$/ => 'Normal',
+                }
+    def findMode(text)
+        puts "file : " + text
+        m = ModeTbl.find do |k,v|
+            k =~ text
+        end
+        m ? m[1] : 'Ruby'
+    end
     def setText(title, text)
         @titleLabel.text = title
-        @textBrowser.clear
-        @textBrowser.text = text
+        @document.setText(text)
+        puts "mode = " + findMode(title)
+        @document.setMode(findMode(title))
         show
     end
 
