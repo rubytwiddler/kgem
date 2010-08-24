@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 #
-#    2009 by ruby.twiddler@gmail.com
+#    2010 by ruby.twiddler@gmail.com
 #
 #      Ruby Gem with KDE GUI
 #
@@ -156,10 +156,11 @@ end
 #
 #
 class PreviewWin < Qt::Widget
-    def initialize
-        super
+    def initialize(parent=nil)
+        super(parent)
 
         createWidget
+        readSettings
     end
 
     def createWidget
@@ -183,6 +184,18 @@ class PreviewWin < Qt::Widget
         @titleLabel.text = title
         @textBrowser.clear
         @textBrowser.text = text
+        show
+    end
+
+    GroupName = 'PreviewWindow'
+    def readSettings
+        config = $config.group(GroupName)
+        restoreGeometry(config.readEntry('windowState', saveGeometry))
+    end
+
+    def writeSettings
+        config = $config.group(GroupName)
+        config.writeEntry('windowState', saveGeometry)
     end
 end
 
@@ -333,6 +346,7 @@ class DownloadWin < Qt::Widget
 
     def notifyDownload
         @dirty = true
+        updateList
     end
 
     attr_accessor :gemViewer
@@ -347,7 +361,7 @@ class DownloadWin < Qt::Widget
         @gemViewer.setDetail(gem)
 
         proc = lambda do |file|
-            %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O}
+            %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O }
         end
         @gemViewer.setGetFileProc(proc)
     end
@@ -817,7 +831,6 @@ class MainWindow < KDE::MainWindow
         tabifyDockWidget(@fileListWin, @terminalWin)
 
         @previewWin = PreviewWin.new
-        @previewWin.show
 
         gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @previewWin)
         @toolsWin = ToolsWin.new(self)
@@ -895,7 +908,9 @@ class MainWindow < KDE::MainWindow
         @actions.writeSettings
         @installedGemsTable.closeEvent(ev)
         @gemHelpdlg.closeEvent(ev)
+        @previewWin.writeSettings
         super(ev)
+        $config.sync    # important!  qtruby can't invoke destructor properly.
     end
 
 
