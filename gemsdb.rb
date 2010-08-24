@@ -68,9 +68,9 @@ class GemItem
 
     def self.parseGemSpec(spec)
         gem = self.new(spec.name, spec.version)
-        gem.author = spec.authors or ''
-        gem.homepage = spec.homepage or ''
-        gem.summary = spec.summary or ''
+        gem.author = spec.authors || ''
+        gem.homepage = spec.homepage || ''
+        gem.summary = spec.summary || ''
         gem.spec = spec
         gem
     end

@@ -20,6 +20,7 @@ require 'sqlite3'
 require 'json'
 require 'uri'
 require 'net/http'
+require 'shellwords'
 
 # additional libs
 require 'korundum4'
@@ -154,6 +155,40 @@ end
 #--------------------------------------------------------------------
 #
 #
+class PreviewWin < Qt::Widget
+    def initialize
+        super
+
+        createWidget
+    end
+
+    def createWidget
+        @titleLabel = Qt::Label.new('')
+        @textBrowser = KDE::TextBrowser.new
+        @closeBtn = KDE::PushButton.new(KDE::Icon.new('dialog-close'), \
+                                        i18n('Close')) do |w|
+            connect(w, SIGNAL(:clicked), self, SLOT(:hide))
+        end
+
+
+        # layout
+        lo = Qt::VBoxLayout.new
+        lo.addWidgets('File Name:', @titleLabel, nil)
+        lo.addWidget(@textBrowser)
+        lo.addWidgets(nil, @closeBtn)
+        setLayout(lo)
+    end
+
+    def setText(title, text)
+        @titleLabel.text = title
+        @textBrowser.clear
+        @textBrowser.text = text
+    end
+end
+
+#--------------------------------------------------------------------
+#
+#
 class SearchWin < Qt::Widget
     def initialize(parent=nil)
         super(parent)
@@ -218,6 +253,7 @@ class SearchWin < Qt::Widget
 
         Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
         %x{ gem fetch #{gem.package} }
+        @gemViewer.notifyDownload
     end
 
     slots  :install
@@ -233,7 +269,6 @@ end
 #
 #
 class DownloadWin < Qt::Widget
-    attr_accessor :dirty
     def initialize(parent=nil)
         super(parent)
 
@@ -296,17 +331,25 @@ class DownloadWin < Qt::Widget
         end
     end
 
+    def notifyDownload
+        @dirty = true
+    end
+
     attr_accessor :gemViewer
     slots  'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
         filePath = @filePathMap[item.text]
         files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
         files.unshift
-        @gemViewer.setFiles( files )
-
+        @gemViewer.setFiles(files)
         spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
         gem = GemItem::parseGemSpec(spec)
         @gemViewer.setDetail(gem)
+
+        proc = lambda do |file|
+            %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O}
+        end
+        @gemViewer.setGetFileProc(proc)
     end
 
     slots  :install
@@ -333,6 +376,45 @@ class DownloadWin < Qt::Widget
     end
 end
 
+#--------------------------------------------------------------------
+#
+#
+class DockGemViewer
+    def initialize(detailView, filesView, previewWin)
+        @detailView = detailView
+        @filesView = filesView
+        @downloadWatcher = []
+        @previewWin = previewWin
+        @getFileProc = nil
+
+        @filesView.setPreviewCmd(
+            lambda do |item|
+                file = item.text
+                @previewWin.setText( file, @getFileProc.call(file) ) if @previewWin
+            end
+        )
+    end
+
+    def setDetail(gem)
+        @detailView.setDetail(gem)
+    end
+
+    def setFiles(files)
+        @filesView.setFiles(files)
+    end
+
+    def setGetFileProc(proc)
+        @getFileProc = proc
+    end
+
+    def addDownloadWatcher(watcher)
+        @downloadWatcher << watcher
+    end
+
+    def notifyDownload
+        @downloadWatcher.each do |w| w.notifyDownload end
+    end
+end
 
 #--------------------------------------------------------------------
 #
@@ -407,17 +489,29 @@ class FileListWin < Qt::DockWidget
     def initialize(parent)
         super('Files', parent)
         self.objectName = 'Files'
+        @previewCmd = nil
         createWidget
     end
 
     def createWidget
         @fileList = Qt::ListWidget.new
+        connect(@fileList, SIGNAL('itemClicked(QListWidgetItem *)'), self,
+                                  SLOT('itemClicked(QListWidgetItem *)'))
         setWidget(@fileList)
     end
 
     def setFiles(files)
         @fileList.clear
         @fileList.addItems(files) if files
+    end
+
+    def setPreviewCmd(proc)
+        @previewCmd = proc
+    end
+
+    slots 'itemClicked(QListWidgetItem *)'
+    def itemClicked(item)
+        @previewCmd.call(item) if @previewCmd
     end
 end
 
@@ -712,18 +806,6 @@ class MainWindow < KDE::MainWindow
     end
 
 
-    class DockGemViewer
-        def initialize(detailView, filesView)
-            @detailView = detailView
-            @filesView = filesView
-        end
-        def setDetail(gem)
-            @detailView.setDetail(gem)
-        end
-        def setFiles(files)
-            @filesView.setFiles(files)
-        end
-    end
 
     def createWidgets
         # dockable window
@@ -734,7 +816,10 @@ class MainWindow < KDE::MainWindow
         @terminalWin = TerminalWin.new(self)
         tabifyDockWidget(@fileListWin, @terminalWin)
 
-        gemViewer = DockGemViewer.new(@detailWin, @fileListWin)
+        @previewWin = PreviewWin.new
+        @previewWin.show
+
+        gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @previewWin)
         @toolsWin = ToolsWin.new(self)
         @searchWin = SearchWin.new(self) do |w|
             w.gemViewer = gemViewer
@@ -742,6 +827,7 @@ class MainWindow < KDE::MainWindow
         @downloadWin = DownloadWin.new(self) do |w|
             w.gemViewer = gemViewer
         end
+        gemViewer.addDownloadWatcher(@downloadWin)
 
 
         # other
