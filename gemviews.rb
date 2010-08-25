@@ -2,20 +2,14 @@
 #
 #
 class DockGemViewer
+    attr_reader :previewWin
     def initialize(detailView, filesView, previewWin)
         @detailView = detailView
         @filesView = filesView
         @downloadWatcher = []
         @previewWin = previewWin
-        @getFileProc = nil
-
-        @filesView.setPreviewCmd(
-            lambda do |item|
-                file = item.text
-                @previewWin.setText( file, @getFileProc.call(file) ) if @previewWin && @getFileProc
-            end
-        )
     end
+
 
     def setDetail(gem)
         @detailView.setDetail(gem)
@@ -30,8 +24,8 @@ class DockGemViewer
         @detailView.setError(gem, ex)
     end
 
-    def setGetFileProc(proc)
-        @getFileProc = proc
+    def setPreviewProc(proc)
+        @filesView.setPreviewProc(proc)
     end
 
     def addDownloadWatcher(watcher)
@@ -116,7 +110,7 @@ class FileListWin < Qt::DockWidget
     def initialize(parent)
         super('Files', parent)
         self.objectName = 'Files'
-        @previewCmd = nil
+        @previewProc = nil
         createWidget
     end
 
@@ -132,13 +126,13 @@ class FileListWin < Qt::DockWidget
         @fileList.addItems(files) if files
     end
 
-    def setPreviewCmd(proc)
-        @previewCmd = proc
+    def setPreviewProc(proc)
+        @previewProc = proc
     end
 
     slots 'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
-        @previewCmd.call(item) if @previewCmd
+        @previewProc.call(item) if @previewProc
     end
 end
 

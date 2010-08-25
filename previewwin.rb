@@ -51,9 +51,18 @@ class PreviewWin < Qt::Widget
     end
     def setText(title, text)
         @titleLabel.text = title
+        @document.setReadWrite(true)
         @document.setText(text)
         puts " Text mode = " + findMode(title)
         @document.setMode(findMode(title))
+        @document.setReadWrite(false)
+        show
+    end
+
+    def setFile(file)
+        @titleLabel.text = file
+        @document.openUrl(KDE::Url.new(file))
+        @document.setReadWrite(false)
         show
     end
 

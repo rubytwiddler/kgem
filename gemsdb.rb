@@ -61,7 +61,12 @@ class GemItem
         gem
     end
 
-    def self.getInstalledGemList
+end
+
+module InstalledGemList
+    extend self
+
+    def get
         gemList = nil
         cnt = 0
         gemf = open('|gem query -d -l')
@@ -98,7 +103,10 @@ class GemItem
         ensure
             gemf.close
         end
-        gemList
+        @gemList = gemList
+    end
+
+    def getCached
+        @gemList ||= get
     end
 end
-

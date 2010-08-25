@@ -142,10 +142,10 @@ class InstalledGemWin < Qt::Widget
     def createWidget
         @installedGemsTable = GemListTable.new('installed')
 
-        @upgradeBtn = KDE::PushButton.new('Upgrade')
+        @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
         @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
-        @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
+
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
 
         @filterInstalledLineEdit = KDE::LineEdit.new do |w|
@@ -175,14 +175,13 @@ class InstalledGemWin < Qt::Widget
     end
 
     #------------------------------------
-    # installed list
+    #
+    #
     slots   :updateInstalledGemList
     def updateInstalledGemList
-        gemList = GemItem.getInstalledGemList
+        gemList = InstalledGemList.get
         @installedGemsTable.updateGemList(gemList)
     end
-
-
 
     slots :initializeAtStart
     def initializeAtStart
@@ -207,12 +206,12 @@ class InstalledGemWin < Qt::Widget
         files = %x{gem contents --prefix #{item.gem.package}}.split(/[\r\n]+/)
         @gemViewer.setFiles( files )
 
-        proc = lambda do |file|
-            IO.read(file)
+        proc = lambda do |item|
+            file = item.text
+            @gemViewer.previewWin.setFile( file )
         end
-        @gemViewer.setGetFileProc(proc)
+        @gemViewer.setPreviewProc(proc)
     end
-
 
     slots :viewRdoc
     def viewRdoc

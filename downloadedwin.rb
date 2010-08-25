@@ -18,6 +18,8 @@ class DownloadedWin < Qt::Widget
                     self, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
+
+        @updateBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), 'Install')
         @deleteBtn = KDE::PushButton.new(KDE::Icon.new('edit-delete'), 'Delete')
 
@@ -25,12 +27,14 @@ class DownloadedWin < Qt::Widget
         connect(@gemFileList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
         connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
         connect(@deleteBtn, SIGNAL(:clicked), self, SLOT(:delete))
+        connect(@updateBtn, SIGNAL(:clicked),
+                self, SLOT(:updateList))
 
         # layout
         lo = Qt::VBoxLayout.new
         lo.addWidgets('Filter:', @filterLine)
         lo.addWidget(@gemFileList)
-        lo.addWidgets(nil, @installBtn, @deleteBtn)
+        lo.addWidgets(@updateBtn, nil, @installBtn, @deleteBtn)
         setLayout(lo)
     end
 
@@ -63,7 +67,7 @@ class DownloadedWin < Qt::Widget
             @gemFileList.addItem(f)
         end
 
-        @selectedFile = nil
+        @selectedGemFile = nil
     end
 
     def notifyDownload
@@ -73,7 +77,7 @@ class DownloadedWin < Qt::Widget
     attr_accessor :gemViewer
     slots  'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
-        @selectedFile = item.text
+        @selectedGemFile = item.text
         filePath = @filePathMap[item.text]
         return unless File.exist?(filePath)
 
@@ -84,22 +88,26 @@ class DownloadedWin < Qt::Widget
         gem = GemItem::parseGemSpec(spec)
         @gemViewer.setDetail(gem)
 
-        proc = lambda do |file|
-            %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O }
+        proc = lambda do |item|
+            file = item.text
+            @gemViewer.previewWin.setText( file, %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O } )
         end
-        @gemViewer.setGetFileProc(proc)
+        @gemViewer.setPreviewProc(proc)
     end
 
-    slots  :install
+    slots :install
     def install
 
     end
 
     slots :delete
     def delete
-        return unless @selectedFile
-        filePath = @filePathMap[@selectedFile]
-        if File.writable?(filePath) then
+        return unless @selectedGemFile
+        filePath = @filePathMap[@selectedGemFile]
+        isInstalled = InstalledGemList.getCached.find do |g|
+            (g.name + '-' + g.version + '.gem') == @selectedGemFile
+        end
+        if File.writable?(filePath) and !isInstalled then
             File.unlink(filePath)
             updateList
         end

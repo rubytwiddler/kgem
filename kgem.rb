@@ -103,7 +103,6 @@ class MainWindow < KDE::MainWindow
         helpMenu = KDE::HelpMenu.new(self, about)
         helpMenu.menu.addSeparator
         helpMenu.menu.addAction(gemHelpAction)
-        p helpMenu
 
         # file menu
         fileMenu = KDE::Menu.new(i18n('&File'), self)
@@ -147,6 +146,7 @@ class MainWindow < KDE::MainWindow
 
         # layout
         @mainTab = KDE::TabWidget.new
+        @mainTab.tabBar.movable = true
         @mainTab.addTab(@searchWin, i18n("Search"))
         @mainTab.addTab(@installedGemWin,
             'Installed Gems'
