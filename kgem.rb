@@ -40,7 +40,6 @@ require "gemsdb"
 #
 #
 class GemListTable < Qt::TableWidget
-    slots   'filterChanged(const QString &)'
     #
     #
     class Item < Qt::TableWidgetItem
@@ -92,7 +91,7 @@ class GemListTable < Qt::TableWidget
     end
 
     # caution ! : befor call, sortingEnabled must be set false.
-    #   speed performance problem elude changing sortingEnabled each time.
+    #   if sortingEnabled is on while updating table, it is very sluggish.
     def addPackage(row, gem)
 #         self.sortingEnabled = false
         nameItem = Item.new(gem.package)
@@ -140,8 +139,7 @@ class GemListTable < Qt::TableWidget
         super(ev)
     end
 
-    # slot
-    public
+    slots   'filterChanged(const QString &)'
     def filterChanged(text)
         unless text && !text.empty?
             showall
