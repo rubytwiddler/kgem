@@ -73,7 +73,7 @@ class ChooseListDlg < Qt::Dialog
         end
         @table.selectRow(list.length-1)
         ret = exec
-        return nil, nil unless @table.currentItem && ret == Qt::Dialog::Accepted 
+        return nil, nil unless @table.currentItem && ret == Qt::Dialog::Accepted
         row = @table.currentItem.row
         [list[row], row]
     end
@@ -139,12 +139,12 @@ end
 #
 class MainWindow < KDE::MainWindow
     slots   :startCmd
-    
+
     def initialize(args)
         super(nil)
 #         args.unshift('--backtrace')
         @args = args
-        
+
         self.windowTitle = 'Ruby Gem'
         createWidget
         # initialize gem ui
@@ -170,12 +170,19 @@ class MainWindow < KDE::MainWindow
         setCentralWidget( lw )
     end
 
+    #------------------------------------
+    #
+    # virtual slot
+    def closeEvent(ev)
+        super(ev)
+        $config.sync    # important!  qtruby can't invoke destructor properly.
+    end
 
     # slot
     def startCmd
 
 #         testWinUi
-        
+
         begin
             Gem::GemRunner.new.run @args
         rescue Gem::SystemExitException => e
@@ -186,16 +193,16 @@ class MainWindow < KDE::MainWindow
     def testWinUi
         ret = @winUi.ask "test ask. what is your name?"
         @winUi.write("your answer is " + ret)
-        
+
         ret = @winUi.ask "test ask long message.\nsome long explanation.\nwhat is your favourite food?"
         @winUi.write("your answer is " + ret)
-        
+
         ret = @winUi.ask_yes_no "test ask Y/N."
         @winUi.write("your answer is " + (ret ? "yes" : "no"))
-        
+
         ret = @winUi.choose_from_list "test choose.", %w{ zarusoba tensoba yamakakesoba nishinsoba }
         @winUi.write("your answer is " + (ret[0] ? ret[0] : "none"))
-        
+
         @winUi.alert "test alert."
         @winUi.alert_error "test alert_error."
         @winUi.alert_warning "test alert_warning."
@@ -205,14 +212,14 @@ class MainWindow < KDE::MainWindow
             progress.updated "testing count : #{i}"
         end
     end
-    
+
     #---------------------------
     #
     class WinUI
         attr_reader :outs, :errs
         def initialize(parent, outW)
             @outs = @errs = OutStream.new(outW)
-            
+
             # dialogs
             @askDlg = AskDlg.new(parent)
             @yesnoDlg = YesNoDlg.new(parent)
@@ -228,12 +235,12 @@ class MainWindow < KDE::MainWindow
             def initialize(outW)
                 @outWidget = outW
             end
-            
+
             def write(msg)
                 STDOUT.puts msg
                 @outWidget.append(msg.to_s)
             end
-            
+
             alias   :puts :write
             alias   :print :write
 
@@ -241,12 +248,12 @@ class MainWindow < KDE::MainWindow
                 true
             end
         end
-        
+
         # ui methods
         def choose_from_list(question, list)
             @chooseListDlg.ask(question, list)
         end
-    
+
         def ask_yes_no(question, default=nil)
             @yesnoDlg.ask(question)
         end
