@@ -58,13 +58,12 @@ class GemListTable < Qt::TableWidget
     PACKAGE_NAME = 0
     PACKAGE_VERSION = 1
     PACKAGE_SUMMARY = 2
-    PACKAGE_STATUS = 3
 
     def initialize(title)
-        super(0,4)
+        super(0,3)
 
         self.windowTitle = title
-        setHorizontalHeaderLabels(['package', 'version', 'summary', 'status'])
+        setHorizontalHeaderLabels(['package', 'version', 'summary'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
         self.alternatingRowColors = true
@@ -101,7 +100,20 @@ class GemListTable < Qt::TableWidget
         setItem( row, PACKAGE_NAME, nameItem  )
         setItem( row, PACKAGE_VERSION, Item.new(gem.version) )
         setItem( row, PACKAGE_SUMMARY, Item.new(gem.summary) )
-        setItem( row, PACKAGE_STATUS, Item.new(gem.status) )
+    end
+
+
+    def updateGemList(gemList)
+        sortFlag = self.sortingEnabled
+        self.sortingEnabled = false
+
+        self.clearContents
+        self.rowCount = gemList.length
+        gemList.each_with_index do |g, r|
+            self.addPackage(r, g)
+        end
+
+        self.sortingEnabled = sortFlag
     end
 
 
@@ -152,6 +164,153 @@ class GemListTable < Qt::TableWidget
 
 end
 
+#--------------------------------------------------------------------
+#
+#
+class InstalledGemWin < Qt::Widget
+    def initialize(parent=nil)
+        super(parent)
+
+        createWidget
+
+        Qt::Timer.singleShot(0, self, SLOT(:initializeAtStart))
+    end
+
+    def createWidget
+        @installedGemsTable = GemListTable.new('installed')
+
+        @upgradeBtn = KDE::PushButton.new('Upgrade')
+        @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
+        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
+        @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
+        @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
+
+        @filterInstalledLineEdit = KDE::LineEdit.new do |w|
+            connect(w,SIGNAL('textChanged(const QString &)'),
+                    @installedGemsTable, SLOT('filterChanged(const QString &)'))
+            w.setClearButtonShown(true)
+        end
+
+        # connect
+        connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
+        connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
+        connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
+        connect(@updateInstalledBtn, SIGNAL(:clicked),
+                self, SLOT(:updateInstalledGemList))
+        connect(@installedGemsTable, SIGNAL('itemClicked(QTableWidgetItem *)'),
+                    self, SLOT('itemClicked(QTableWidgetItem *)'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |w|
+                w.addWidgets('Filter:', @filterInstalledLineEdit)
+                w.addWidget(@installedGemsTable)
+                w.addWidgets(@updateInstalledBtn, nil,
+                                          @viewDirBtn, @viewRdocBtn,
+                                          @uninstallBtn)
+            end
+        setLayout(lo)
+    end
+
+    #------------------------------------
+    # installed list
+    slots   :updateInstalledGemList
+    def updateInstalledGemList
+        gemList = GemItem.getInstalledGemList
+        @installedGemsTable.updateGemList(gemList)
+    end
+
+
+
+    slots :initializeAtStart
+    def initializeAtStart
+        updateInstalledGemList
+    end
+
+    attr_accessor :gemViewer
+    slots 'itemClicked(QTableWidgetItem *)'
+    def itemClicked(item)
+        unless item.gem.spec then
+            specStr = %x{gem specification #{item.gem.package} -l --marshal}
+            begin
+                spec = Marshal.load(specStr)
+            rescue NoMethodError, ArgumentError => e
+                # rescue from some error gems.
+                @gemViewer.setError(item.gem, e)
+                return
+            end
+            item.gem.spec = spec
+        end
+        @gemViewer.setDetail( item.gem )
+        files = %x{gem contents --prefix #{item.gem.package}}.split(/[\r\n]+/)
+        @gemViewer.setFiles( files )
+
+        proc = lambda do |file|
+            IO.read(file)
+        end
+        @gemViewer.setGetFileProc(proc)
+    end
+
+
+    slots :viewRdoc
+    def viewRdoc
+        gem = @installedGemsTable.currentGem
+        return unless gem
+
+        # make rdoc path
+        pkg = gem.package
+        ver = gem.latestVersion
+        url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
+        cmd = Settings.browserCmdForOpenDoc(url)
+        fork do exec(cmd) end
+    end
+
+    def getGemPaths
+        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
+    end
+
+    def addGemPath(path)
+        paths = getGemPaths
+        file = nil
+        paths.find do |p|
+            file = p + path
+            File.exist? file
+        end
+        file
+    end
+
+
+    slots :viewDir
+    def viewDir
+        gem = @installedGemsTable.currentGem
+        return unless gem
+
+        pkg = gem.package
+        ver = gem.latestVersion
+        url = addGemPath('/gems/' + pkg + '-' + ver)
+        cmd = Settings.filerCmdForOpenDir(url)
+        fork do exec(cmd) end
+    end
+
+    slots :uninstallGem
+    def uninstallGem
+        gem = @installedGemsTable.currentGem
+        return unless gem
+
+        args = [ 'uninstall' ]
+        args.push( gem.package )
+        puts "installedLocal? : " + gem.installedLocal?.inspect
+        cmd = if gem.installedLocal? then
+                "#{APP_DIR}/gemcmdwin.rb"
+            else
+                "#{APP_DIR}/gemcmdwin-super.rb"
+            end
+        @terminalWin.processStart(cmd, args) do
+            updateInstalledGemList
+        end
+    end
+
+end
+
 
 #--------------------------------------------------------------------
 #
@@ -184,6 +343,7 @@ class PreviewWin < Qt::Widget
     end
 
     ModeTbl = { /\.rb$/ => 'Ruby',
+                /Rakefile$/ => 'Ruby',
                 /\.(h|c|cpp)$/ => 'C++',
                 /\.json$/ => 'JSON',
                 /\.html?$/ => 'HTML',
@@ -194,10 +354,9 @@ class PreviewWin < Qt::Widget
                 /\.css$/ => 'CSS',
                 /\.py$/ => 'Python',
                 /\.txt$/ => 'Normal',
-                /^(readme|.*license|todo)$/ => 'Normal',
+                /^(readme|.*license|todo)$/i => 'Normal',
                 }
     def findMode(text)
-        puts "file : " + text
         m = ModeTbl.find do |k,v|
             k =~ text
         end
@@ -206,7 +365,7 @@ class PreviewWin < Qt::Widget
     def setText(title, text)
         @titleLabel.text = title
         @document.setText(text)
-        puts "mode = " + findMode(title)
+        puts " Text mode = " + findMode(title)
         @document.setMode(findMode(title))
         show
     end
@@ -428,7 +587,7 @@ class DockGemViewer
         @filesView.setPreviewCmd(
             lambda do |item|
                 file = item.text
-                @previewWin.setText( file, @getFileProc.call(file) ) if @previewWin
+                @previewWin.setText( file, @getFileProc.call(file) ) if @previewWin && @getFileProc
             end
         )
     end
@@ -439,6 +598,11 @@ class DockGemViewer
 
     def setFiles(files)
         @filesView.setFiles(files)
+    end
+
+    # @param ex : Exception.
+    def setError(gem, ex)
+        @detailView.setError(gem, ex)
     end
 
     def setGetFileProc(proc)
@@ -701,54 +865,6 @@ class GemHelpDlg < KDE::MainWindow
     end
 end
 
-#--------------------------------------------------------------------
-#
-#
-class ToolsWin < Qt::Widget
-    def initialize(parent=nil)
-        super(parent)
-        createWidget
-    end
-
-    def createWidget
-        @repoWin = RepositoryWidget.new
-
-        # layout
-        @toolsTab = KDE::TabWidget.new
-        @toolsTab.addTab(@repoWin, i18n("Repositories"))
-        lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@toolsTab)
-        end
-        setLayout(lo)
-    end
-
-end
-
-
-class RepositoryWidget < Qt::Widget
-    # gem sources -a http://gems.github.com
-    #  http://gemcutter.org
-    def initialize(parent=nil)
-        super(nil)
-        createWidget
-    end
-
-    def createWidget
-        @addGithubCheckBox = Qt::CheckBox.new(i18n("add http://gems.github.com to repository"))
-        appyBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok-apply'), i18n('Apply'))
-        makeMirrorBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), i18n('Make Mirror'))
-
-        # layout
-        lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@addGithubCheckBox)
-            l.addWidgets(makeMirrorBtn, nil)
-            l.addStretch
-            l.addWidgets(appyBtn, nil)
-        end
-        setLayout(lo)
-    end
-end
-
 
 
 #--------------------------------------------------------------------
@@ -757,11 +873,8 @@ end
 #
 #
 class MainWindow < KDE::MainWindow
-    slots   :updateGemList, :updateInstalledGemList
-    slots   'itemClicked (QTableWidgetItem *)'
-    slots   :viewRdoc, :viewDir, :installGem, :uninstallGem
+    slots   :installGem
     slots   :configureShortCut, :configureApp, :gemCommandHelp
-    slots   :initializeAtStart
 
     def initialize
         super(nil)
@@ -771,19 +884,15 @@ class MainWindow < KDE::MainWindow
         createWidgets
         createMenu
         createDlg
-        setupGems
         @actions.readSettings
         setAutoSaveSettings
 
-        Qt::Timer.singleShot(0, self, SLOT(:initializeAtStart))
     end
 
 
     def createMenu
         # create actions
         updateListAction = KDE::Action.new(KDE::Icon.new('view-refresh'), 'Update List', self)
-        updateListAction.setShortcut(KDE::Shortcut.new('Ctrl+R'))
-        @actions.addAction(updateListAction.text, updateListAction)
         quitAction = KDE::Action.new(KDE::Icon.new('exit'), '&Quit', self)
         quitAction.setShortcut(KDE::Shortcut.new('Ctrl+Q'))
         @actions.addAction(quitAction.text, quitAction)
@@ -793,7 +902,6 @@ class MainWindow < KDE::MainWindow
         @actions.addAction(installAction.text, installAction)
 
         # connect actions
-        connect(updateListAction, SIGNAL(:triggered), self, SLOT(:updateGemList))
         connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
         connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
         connect(installAction, SIGNAL(:triggered), self, SLOT(:installGem))
@@ -823,7 +931,7 @@ class MainWindow < KDE::MainWindow
         # Help menu
         about = i18n(<<-ABOUT
 #{APP_NAME} #{APP_VERSION}
-    Ruby Gems Tool on KDE GUI
+  Ruby Gems Tool with KDE GUI
         ABOUT
         )
         helpMenu = KDE::HelpMenu.new(self, about)
@@ -856,58 +964,29 @@ class MainWindow < KDE::MainWindow
 
         @previewWin = PreviewWin.new
 
-        gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @previewWin)
-        @toolsWin = ToolsWin.new(self)
+        # tab windows
+        @gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @previewWin)
+        @installedGemWin = InstalledGemWin.new(self) do |w|
+            w.gemViewer = @gemViewer
+        end
         @searchWin = SearchWin.new(self) do |w|
-            w.gemViewer = gemViewer
+            w.gemViewer = @gemViewer
         end
         @downloadWin = DownloadWin.new(self) do |w|
-            w.gemViewer = gemViewer
+            w.gemViewer = @gemViewer
         end
-        gemViewer.addDownloadWatcher(@downloadWin)
+        @gemViewer.addDownloadWatcher(@downloadWin)
 
-
-        # other
-        @installedGemsTable = GemListTable.new('installed')
-
-        @upgradeBtn = KDE::PushButton.new('Upgrade')
-        @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
-        @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
-        @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
-        @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
-
-        @filterInstalledLineEdit = KDE::LineEdit.new do |w|
-            connect(w,SIGNAL('textChanged(const QString &)'),
-                    @installedGemsTable, SLOT('filterChanged(const QString &)'))
-            w.setClearButtonShown(true)
-        end
-
-        # connect
-        connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
-        connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
-        connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
-        connect(@updateInstalledBtn, SIGNAL(:clicked),
-                self, SLOT(:updateInstalledGemList))
-        connect(@installedGemsTable, SIGNAL('itemClicked (QTableWidgetItem *)'),
-                    self, SLOT('itemClicked (QTableWidgetItem *)'))
 
         # layout
         @mainTab = KDE::TabWidget.new do |w|
             connect(w, SIGNAL('currentChanged(int)'), self, SLOT('tabChanged(int)'))
         end
-        @mainTab.addTab(
-            VBoxLayoutWidget.new do |w|
-                w.addWidgets('Filter:', @filterInstalledLineEdit)
-                w.addWidget(@installedGemsTable)
-                w.addWidgetWithNilStretch(@updateInstalledBtn, nil,
-                                          @viewDirBtn, @viewRdocBtn,
-                                          @uninstallBtn)
-            end ,
+        @mainTab.addTab(@searchWin, i18n("Search"))
+        @mainTab.addTab(@installedGemWin,
             'Installed Gems'
         )
-        @mainTab.addTab(@searchWin, i18n("Search"))
         @mainTab.addTab(@downloadWin, i18n("Downloaded Gems"))
-        @mainTab.addTab(@toolsWin, i18n("Tools"))
 
         setCentralWidget(@mainTab)
     end
@@ -917,20 +996,13 @@ class MainWindow < KDE::MainWindow
         @gemHelpdlg = GemHelpDlg.new(self)
     end
 
-    def setupGems
-        @gemsDb = GemsDb.new
-    end
-
-    def initializeAtStart
-        updateInstalledGemList
-    end
 
     #------------------------------------
     #
     # virtual slot
     def closeEvent(ev)
         @actions.writeSettings
-        @installedGemsTable.closeEvent(ev)
+        @installedGemWin.closeEvent(ev)
         @gemHelpdlg.closeEvent(ev)
         @previewWin.writeSettings
         super(ev)
@@ -962,87 +1034,9 @@ class MainWindow < KDE::MainWindow
         end
     end
 
-    #------------------------------------
-    # installed list
-    # slot
-    def updateInstalledGemList
-        @gemsDb.updateInstalledGemList(@installedGemsTable)
-    end
 
 
 
-
-
-    # slot
-    def updateGemList
-        case @mainTab.currentIndex
-        when 0
-            updateInstalledGemList
-        end
-    end
-
-
-    # slot
-    def itemClicked(item)
-        unless item.gem.spec then
-            spec = GemSpec.getGemSpecInCache(item.gem)
-            unless spec then
-                specStr = %x{gem specification #{item.gem.package} -b --marshal}
-                begin
-                    spec = Marshal.load(specStr)
-                rescue NoMethodError, ArgumentError => e
-                    # rescue from some error gems.
-                    @detailWin.setError(item.gem, e)
-                    return
-                end
-            end
-            item.gem.spec = spec
-        end
-        @detailWin.setDetail( item.gem )
-        files = %x{gem contents --prefix #{item.gem.package}}.split(/[\r\n]+/)
-        @fileListWin.setFiles( files )
-    end
-
-
-    # slot
-    def viewRdoc
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        # make rdoc path
-        pkg = gem.package
-        ver = gem.latestVersion
-        url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
-        cmd = Settings.browserCmdForOpenDoc(url)
-        fork do exec(cmd) end
-    end
-
-    def getGemPaths
-        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
-    end
-
-    def addGemPath(path)
-        paths = getGemPaths
-        file = nil
-        paths.find do |p|
-            file = p + path
-            File.exist? file
-        end
-        file
-    end
-
-
-    # slot
-    def viewDir
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        pkg = gem.package
-        ver = gem.latestVersion
-        url = addGemPath('/gems/' + pkg + '-' + ver)
-        cmd = Settings.filerCmdForOpenDir(url)
-        fork do exec(cmd) end
-    end
 
 
     # slot
@@ -1064,23 +1058,6 @@ class MainWindow < KDE::MainWindow
     end
 
 
-    # slot
-    def uninstallGem
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        args = [ 'uninstall' ]
-        args.push( gem.package )
-        puts "installedLocal? : " + gem.installedLocal?.inspect
-        cmd = if gem.installedLocal? then
-                "#{APP_DIR}/gemcmdwin.rb"
-            else
-                "#{APP_DIR}/gemcmdwin-super.rb"
-            end
-        @terminalWin.processStart(cmd, args) do
-            updateInstalledGemList
-        end
-    end
 
 end
 
