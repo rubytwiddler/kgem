@@ -222,7 +222,8 @@ class InstalledGemWin < Qt::Widget
         pkg = gem.package
         ver = gem.latestVersion
         url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
-        cmd = Settings.browserCmdForOpenDoc(url)
+        cmd= Mime::services('.html').first.exec
+        cmd.gsub!(/%\w+/, url)
         fork do exec(cmd) end
     end
 
@@ -249,7 +250,7 @@ class InstalledGemWin < Qt::Widget
         pkg = gem.package
         ver = gem.latestVersion
         url = addGemPath('/gems/' + pkg + '-' + ver)
-        cmd = Settings.filerCmdForOpenDir(url)
+        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
         fork do exec(cmd) end
     end
 
