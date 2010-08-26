@@ -53,7 +53,7 @@ class SearchWin < Qt::Widget
 
     def getCurrentGem
         row = @gemList.currentRow
-        return nil unless row < @gemList.count
+        return nil unless row < @gemList.count and row >= 0
         name = @gemList.item(row).text
         @gems[name]
     end
@@ -61,7 +61,7 @@ class SearchWin < Qt::Widget
     slots  :fetch
     def fetch
         gem = getCurrentGem
-        return gem unless gem
+        return unless gem
 
         Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
         %x{ gem fetch #{gem.package} }
