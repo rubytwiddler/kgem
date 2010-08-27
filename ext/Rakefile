@@ -1,0 +1,43 @@
+#!/usr/bin/ruby
+
+require 'ftools'
+
+APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
+RES_DIR = File::join(APP_DIR, "pkg_resources")
+
+def install_console_helper(console_helper_name, target_cmd_name)
+    etc_dir = ENV['etc_dir'] || '/etc'
+
+    console_helper_link = File.join(APP_DIR, 'bin', console_helper_name)
+    cmd_path = File.join(APP_DIR, 'bin', target_cmd_name)
+    pam_src_path = File.join( RES_DIR, console_helper_name + '.pam' )
+    pam_dst_path = File.join(etc_dir, 'pam.d', console_helper_name)
+    console_app_file = File.join(etc_dir, 'security', 'console.apps', console_helper_name)
+    console_helper_target = %x{ which consolehelper }.strip!
+
+    puts "cp #{pam_src_path} #{pam_dst_path}"
+    puts "ln -s #{console_helper_target}  #{console_helper_link}"
+    puts "write #{console_app_file}"
+
+    File.cp(pam_src_path, pam_dst_path)
+    if File.exist?(console_helper_link) then
+        File.unlink(console_helper_link)
+    end
+    File.symlink(console_helper_target, console_helper_link)
+
+    open(console_app_file, 'w') do |f|
+        f.write(<<-EOF
+USER=root
+PROGRAM=#{cmd_path}
+FALLBACK=false
+SESSION=true
+EOF
+               )
+    end
+end
+
+desc "Install consolehelper files."
+task :default do
+    install_console_helper('gemcmdwin-super.rb', 'gemcmdwin.rb')
+end
+

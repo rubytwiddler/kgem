@@ -74,6 +74,10 @@ class DownloadedWin < Qt::Widget
         updateList
     end
 
+    def notifyInstall
+        updateList
+    end
+
     attr_accessor :gemViewer
     slots  'itemClicked(QListWidgetItem *)'
     def itemClicked(item)
@@ -97,16 +101,25 @@ class DownloadedWin < Qt::Widget
 
     slots :install
     def install
+        return unless @selectedGemFile
+        isInstalled = InstalledGemList.getCached.find do |g|
+            (g.name + '-' + g.version + '.gem') == @selectedGemFile
+        end
+        return if isInstalled
 
+        filePath = @filePathMap[@selectedGemFile]
+        spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
+        gem = GemItem::parseGemSpec(spec)
+        @gemViewer.install(gem)
     end
 
     slots :delete
     def delete
         return unless @selectedGemFile
-        filePath = @filePathMap[@selectedGemFile]
         isInstalled = InstalledGemList.getCached.find do |g|
             (g.name + '-' + g.version + '.gem') == @selectedGemFile
         end
+        filePath = @filePathMap[@selectedGemFile]
         if File.writable?(filePath) and !isInstalled then
             File.unlink(filePath)
             updateList

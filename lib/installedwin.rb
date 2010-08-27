@@ -177,6 +177,10 @@ class InstalledGemWin < Qt::Widget
     #------------------------------------
     #
     #
+    def notifyInstall
+        updateInstalledGemList
+    end
+
     slots   :updateInstalledGemList
     def updateInstalledGemList
         gemList = InstalledGemList.get
@@ -259,17 +263,7 @@ class InstalledGemWin < Qt::Widget
         gem = @installedGemsTable.currentGem
         return unless gem
 
-        args = [ 'uninstall' ]
-        args.push( gem.package )
-        puts "installedLocal? : " + gem.installedLocal?.inspect
-        cmd = if gem.installedLocal? then
-                "#{APP_DIR}/gemcmdwin.rb"
-            else
-                "#{APP_DIR}/gemcmdwin-super.rb"
-            end
-        @terminalWin.processStart(cmd, args) do
-            updateInstalledGemList
-        end
+        @gemViewer.uninstall(gem)
     end
 
 end

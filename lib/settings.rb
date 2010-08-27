@@ -4,7 +4,7 @@
 require 'singleton'
 require 'kio'
 #
-require "#{APP_DIR}/mylibs"
+require "mylibs"
 
 
 class Settings < SettingsBase

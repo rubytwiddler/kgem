@@ -63,9 +63,7 @@ class SearchWin < Qt::Widget
         gem = getCurrentGem
         return unless gem
 
-        Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
-        %x{ gem fetch #{gem.package} }
-        @gemViewer.notifyDownload
+        @gemViewer.download(gem)
     end
 
     slots  :install
@@ -73,16 +71,6 @@ class SearchWin < Qt::Widget
         gem = getCurrentGem
         return gem unless gem
 
-        args = [ 'install' ]
-        args.push( gem.package )
-        cmd = if Settings.installInSystemDirFlag then
-                "#{APP_DIR}/gemcmdwin-super.rb"
-            else
-                "#{APP_DIR}/gemcmdwin.rb"
-                args.push( '--user-install' )
-            end
-        @terminalWin.processStart(cmd, args) do
-            updateInstalledGemList
-        end
+        @gemViewer.install(gem)
     end
 end

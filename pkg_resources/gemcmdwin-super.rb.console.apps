@@ -1,4 +1,4 @@
 USER=root
-PROGRAM=/home/kaji/dev/projects/ruby/kgem/gemcmdwin.rb
+PROGRAM=/home/r.t/dev/projects/ruby/kgem/gemcmdwin.rb
 FALLBACK=false
 SESSION=true

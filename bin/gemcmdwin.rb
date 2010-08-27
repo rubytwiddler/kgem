@@ -15,8 +15,9 @@ end
 require 'ftools'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
-APP_DIR = File.expand_path(File.dirname(__FILE__))
-APP_VERSION = "0.1"
+APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
+LIB_DIR = File::join(APP_DIR, "lib")
+APP_VERSION = "0.1.0"
 
 # standard libs
 require 'fileutils'
@@ -27,7 +28,7 @@ require 'korundum4'
 #
 # my libraries and programs
 #
-require "#{APP_DIR}/mylibs"
+require "#{LIB_DIR}/mylibs"
 
 
 #--------------------------------------------------------------------------
@@ -328,6 +329,7 @@ KDE::CmdLineArgs.init([], about)
 
 $app = KDE::Application.new
 args = KDE::CmdLineArgs.parsedArgs()
+$config = KDE::Global::config
 win = MainWindow.new(ARGV)
 $app.setTopWidget(win)
 

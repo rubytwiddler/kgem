@@ -9,8 +9,9 @@ $KCODE = 'UTF8'
 require 'ftools'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
-APP_DIR = File.expand_path(File.dirname(__FILE__))
-APP_VERSION = "0.1"
+APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
+LIB_DIR = File::join(APP_DIR, "lib")
+APP_VERSION = "0.1.0"
 
 # standard libs
 require 'fileutils'
@@ -28,7 +29,7 @@ require 'ktexteditor'
 #
 # my libraries and programs
 #
-# $:.unshift(APP_DIR)
+$:.unshift(LIB_DIR)
 require "mylibs"
 require "settings"
 require "gemsdb"
@@ -131,17 +132,19 @@ class MainWindow < KDE::MainWindow
         @previewWin = PreviewWin.new
 
         # tab windows
-        @gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @previewWin)
+        @gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @terminalWin, @previewWin)
         @installedGemWin = InstalledGemWin.new(self) do |w|
             w.gemViewer = @gemViewer
+            @gemViewer.addInstallWatcher(w)
         end
         @searchWin = SearchWin.new(self) do |w|
             w.gemViewer = @gemViewer
         end
         @downloadedWin = DownloadedWin.new(self) do |w|
             w.gemViewer = @gemViewer
+            @gemViewer.addInstallWatcher(w)
+            @gemViewer.addDownloadWatcher(w)
         end
-        @gemViewer.addDownloadWatcher(@downloadedWin)
 
 
         # layout

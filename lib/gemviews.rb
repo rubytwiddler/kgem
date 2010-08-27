@@ -3,10 +3,12 @@
 #
 class DockGemViewer
     attr_reader :previewWin
-    def initialize(detailView, filesView, previewWin)
+    def initialize(detailView, filesView, terminalWin, previewWin)
         @detailView = detailView
         @filesView = filesView
+        @terminalWin = terminalWin
         @downloadWatcher = []
+        @installWatcher  = []
         @previewWin = previewWin
     end
 
@@ -34,6 +36,64 @@ class DockGemViewer
 
     def notifyDownload
         @downloadWatcher.each do |w| w.notifyDownload end
+    end
+
+    def addInstallWatcher(watcher)
+        @installWatcher << watcher
+    end
+
+    def notifyInstall
+        @installWatcher.each do |w| w.notifyInstall end
+    end
+
+
+    def install(gem)
+        args = [ 'install' ]
+        args.push( gem.package )
+        cmd = if Settings.installInSystemDirFlag then
+                "#{APP_DIR}/bin/gemcmdwin-super.rb"
+            else
+                "#{APP_DIR}/bin/gemcmdwin.rb"
+                args.push( '--user-install' )
+            end
+        @terminalWin.processStart(cmd, args) do
+            notifyInstall
+            notifyDownload
+            if ret == 0 then
+                passiveMessage("Installed #{gem.package}")
+            end
+        end
+    end
+
+    def uninstall(gem)
+        args = [ 'uninstall' ]
+        args.push( gem.package )
+        puts "installedLocal? : " + gem.installedLocal?.inspect
+        cmd = if gem.installedLocal? then
+                "#{APP_DIR}/bin/gemcmdwin.rb"
+            else
+                "#{APP_DIR}/bin/gemcmdwin-super.rb"
+            end
+        @terminalWin.processStart(cmd, args) do
+            notifyInstall
+            if ret == 0 then
+                passiveMessage("Uninstalled #{gem.package}")
+            end
+        end
+    end
+
+    def download(gem)
+        Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
+        cmd = 'gem'
+        args = [ 'fetch', gem.package ]
+        @terminalWin.processStart(cmd, args) do |ret|
+            notifyDownload
+            if ret == 0 then
+                passiveMessage("Downloaded #{gem.package}")
+            else
+                passiveMessage("Download #{gem.package} failed.")
+            end
+        end
     end
 end
 
@@ -181,6 +241,7 @@ class TerminalWin < Qt::DockWidget
             KDE::MessageBox::information(self, msg)
             return
         end
+        puts "execute : " + cmd + " " + args.join(' ')
         @process.start(cmd, args)
         @finishProc = block
     end
@@ -188,7 +249,7 @@ class TerminalWin < Qt::DockWidget
     def processfinished(exitCode, exitStatus)
         write( @process.readAll.data )
         if @finishProc
-            @finishProc.call
+            @finishProc.call(exitCode)
         end
     end
 
