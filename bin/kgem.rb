@@ -95,14 +95,32 @@ class MainWindow < KDE::MainWindow
 
 
         # Help menu
-        about = i18n(<<-ABOUT
-#{APP_NAME} #{APP_VERSION}
-  Ruby Gems Tool with KDE GUI
-        ABOUT
-        )
-        helpMenu = KDE::HelpMenu.new(self, about)
-        helpMenu.menu.addSeparator
-        helpMenu.menu.addAction(gemHelpAction)
+        aboutDlg = KDE::AboutApplicationDialog.new($about)
+        openAboutAction = KDE::Action.new(KDE::Icon.new('kgem'),
+                                          i18n('About kgem'), self)
+        connect(openAboutAction, SIGNAL(:triggered), aboutDlg, SLOT(:exec))
+
+        #
+        openDocUrlAction = KDE::Action.new(KDE::Icon.new('help-contents'),
+                                           i18n('Open Document Wiki'), self)
+        connect(openDocUrlAction, SIGNAL(:triggered), self, SLOT(:openDocUrl))
+
+        #
+        openReportIssueUrlAction = KDE::Action.new(
+            KDE::Icon.new('tools-report-bug'), i18n('Report Bug'), self)
+        connect(openReportIssueUrlAction, SIGNAL(:triggered), self,
+                SLOT(:openReportIssueUrl))
+        openSourceAction = KDE::Action.new(KDE::Icon.new('document-open-folder'),
+                                           i18n('Open Source Folder'), self)
+        connect(openSourceAction, SIGNAL(:triggered), self, SLOT(:openSource))
+
+        helpMenu = KDE::Menu.new(i18n('&Help'), self)
+        helpMenu.addAction(openDocUrlAction)
+        helpMenu.addAction(openReportIssueUrlAction)
+        helpMenu.addAction(openSourceAction)
+        helpMenu.addSeparator
+        helpMenu.addAction(openAboutAction)
+
 
         # file menu
         fileMenu = KDE::Menu.new(i18n('&File'), self)
@@ -112,7 +130,7 @@ class MainWindow < KDE::MainWindow
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
         menu.addMenu( settingsMenu )
-        menu.addMenu( helpMenu.menu )
+        menu.addMenu( helpMenu )
         setMenuBar(menu)
     end
 
@@ -179,6 +197,29 @@ class MainWindow < KDE::MainWindow
     #------------------------------------
     #
     #
+    slots :openDocUrl
+    def openDocUrl
+        openUrlDocument('http://github.com/rubytwiddler/kgem/wiki')
+    end
+
+    slots :openReportIssueUrl
+    def openReportIssueUrl
+        openUrlDocument('http://github.com/rubytwiddler/kgem/issues')
+    end
+
+    slots  :openSource
+    def openSource
+        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
+        cmd += " " + APP_DIR
+        fork do exec(cmd) end
+    end
+
+    def openUrlDocument(url)
+        cmd= Mime::services('.html').first.exec
+        cmd.gsub!(/%\w+/, url)
+        fork do exec(cmd) end
+    end
+
     slots :configureShortCut
     def configureShortCut
         KDE::ShortcutsDialog.configure(@actions)
@@ -200,8 +241,11 @@ end
 #    main start
 #
 
-about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION)
-KDE::CmdLineArgs.init(ARGV, about)
+$about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION,
+                            KDE::ki18n('Gem Utitlity with KDE GUI.')
+                           )
+$about.addLicenseTextFile(APP_DIR + '/MIT-LICENSE')
+KDE::CmdLineArgs.init(ARGV, $about)
 
 $app = KDE::Application.new
 args = KDE::CmdLineArgs.parsedArgs()

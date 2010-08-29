@@ -211,7 +211,7 @@ class InstalledGemWin < Qt::Widget
         # make rdoc path
         pkg = gem.package
         ver = gem.latestVersion
-        url = addGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
+        url = findGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
         cmd= Mime::services('.html').first.exec
         cmd.gsub!(/%\w+/, url)
         fork do exec(cmd) end
@@ -221,7 +221,7 @@ class InstalledGemWin < Qt::Widget
         @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
     end
 
-    def addGemPath(path)
+    def findGemPath(path)
         paths = getGemPaths
         file = nil
         paths.find do |p|
@@ -239,8 +239,9 @@ class InstalledGemWin < Qt::Widget
 
         pkg = gem.package
         ver = gem.latestVersion
-        url = addGemPath('/gems/' + pkg + '-' + ver)
+        url = findGemPath('/gems/' + pkg + '-' + ver)
         cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
+        cmd += " " + url
         fork do exec(cmd) end
     end
 
