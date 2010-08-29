@@ -62,7 +62,6 @@ class MainWindow < KDE::MainWindow
 
     def createMenu
         # create actions
-        updateListAction = KDE::Action.new(KDE::Icon.new('view-refresh'), 'Update List', self)
         quitAction = KDE::Action.new(KDE::Icon.new('exit'), '&Quit', self)
         quitAction.setShortcut(KDE::Shortcut.new('Ctrl+Q'))
         @actions.addAction(quitAction.text, quitAction)
@@ -107,7 +106,6 @@ class MainWindow < KDE::MainWindow
 
         # file menu
         fileMenu = KDE::Menu.new(i18n('&File'), self)
-        fileMenu.addAction(updateListAction)
         fileMenu.addAction(quitAction)
 
         # insert menus in MenuBar

@@ -11,6 +11,17 @@ class DockGemViewer
         @downloadWatcher = []
         @installWatcher  = []
         @previewWin = previewWin
+
+        @detailView.setGetSpecProc(
+            Proc.new do |gem|
+                res = %x{ gem specification #{gem.name} -b  --marshal }
+                unless res.empty?
+                    spec = Marshal.load(res)
+                    gem = GemItem::parseGemSpec(spec)
+                    setDetail(gem)
+                end
+            end
+        )
     end
 
 
@@ -124,7 +135,15 @@ class DetailWin < Qt::DockWidget
             fork do exec(cmd) end
         end
         @textPart.openLinks = false
-        setWidget(@textPart)
+        @moreInfoBtn = KDE::PushButton.new(i18n('More Information'))
+        connect(@moreInfoBtn, SIGNAL(:clicked), self, SLOT(:moreInfo))
+        @moreInfoBtn.hide
+
+        lw = VBoxLayoutWidget.new do |l|
+            l.addWidget(@textPart)
+            l.addWidget(@moreInfoBtn)
+        end
+        setWidget(lw)
     end
 
     class HtmlStr < String
@@ -151,8 +170,11 @@ class DetailWin < Qt::DockWidget
 
     public
     def setDetail(gem)
+        @currentGem = gem
         @textPart.clear
+        @moreInfoBtn.hide
         return unless gem
+        spec = gem.spec
         html = HtmlStr.new
         html.insertHtml("<font size='+1'>#{gem.package}</font><br>")
         html.insertHtml(gem.summary.gsub(/\n/,'<br>'))
@@ -163,11 +185,13 @@ class DetailWin < Qt::DockWidget
         end
         html.insertItem('Author', author)
         html.insertItem('Version', gem.version)
+        if spec then
+            html.insertItem('Date', spec.date.strftime('%F'))
+        end
         html.insertUrl('Rubyforge', gem.rubyforge)
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform) if gem.platform !~ /ruby/i
         html.insertHtml("</table>")
-        spec = gem.spec
         if spec then
             deps = spec.dependencies
             if deps.size > 0 then
@@ -183,6 +207,8 @@ class DetailWin < Qt::DockWidget
             if spec.description then
                 html.insertHtml('<p>'+spec.description.gsub(/\n/,'<br>'))
             end
+        else
+            @moreInfoBtn.show
         end
 
         @textPart.insertHtml(html)
@@ -196,7 +222,17 @@ class DetailWin < Qt::DockWidget
         EOF
         )
     end
+
+    def setGetSpecProc(proc)
+        @getSpecProc = proc
+    end
+
+    slots  :moreInfo
+    def moreInfo
+        @getSpecProc.call(@currentGem) if @getSpecProc
+    end
 end
+
 #--------------------------------------------------------------------
 #
 #

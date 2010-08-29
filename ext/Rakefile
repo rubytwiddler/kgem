@@ -6,7 +6,7 @@ APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
 RES_DIR = File::join(APP_DIR, "pkg_resources")
 
 def install_console_helper(console_helper_name, target_cmd_name)
-    etc_dir = ENV['etc_dir'] || '/etc'
+    etc_dir = ENV['sysconf_dir'] || ENV['etc_dir'] || '/etc'
 
     console_helper_link = File.join(APP_DIR, 'bin', console_helper_name)
     cmd_path = File.join(APP_DIR, 'bin', target_cmd_name)

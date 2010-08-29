@@ -21,6 +21,7 @@ class GemItem
         if ver.nil?
             pkg, ver = pkg_and_ver.split(/ /, 2)
             ver.tr!('()', '')
+            ver.strip!
         else
             pkg = pkg_and_ver
         end
