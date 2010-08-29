@@ -10,6 +10,13 @@ class SearchTable < Qt::TableWidget
         end
     end
 
+    class NumItem < Item
+        def lessThan(i)
+            self.text.to_i < i.text.to_i
+        end
+        alias :'operator<' :lessThan
+    end
+
     def initialize
         super(0,3)
 
@@ -28,7 +35,7 @@ class SearchTable < Qt::TableWidget
         @gems[nameItem] = gem   # 0 column item is hash key.
         setItem( row, 0, nameItem )
         setItem( row, 1, Item.new(gem.version) )
-        setItem( row, 2, Item.new(gem.downloads.to_s) )
+        setItem( row, 2, NumItem.new(gem.downloads.to_s) )
     end
 
     def updateGemList(gemList)

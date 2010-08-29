@@ -118,7 +118,8 @@ class DetailWin < Qt::DockWidget
     def createWidget
         @textPart = Qt::TextBrowser.new
         connect(@textPart, SIGNAL('anchorClicked(const QUrl&)')) do |url|
-            cmd = Settings.browserCmdForOpenDoc(url.toString)
+            cmd= Mime::services('.html').first.exec
+            cmd.gsub!(/%\w+/, url.toString.shellescape)
             fork do exec(cmd) end
         end
         @textPart.openLinks = false
