@@ -44,7 +44,7 @@ class GemItem
     end
 
     def self.parseHashGem(hGem)
-        gem = self.new(hGem['name'], hGem['version'])
+        gem = self.new(hGem['name'], hGem['version'].to_s)
         gem.author = hGem['authors']
         gem.homepage = hGem['homepage_uri']
         gem.downloads = hGem['downloads']
@@ -53,7 +53,7 @@ class GemItem
     end
 
     def self.parseGemSpec(spec)
-        gem = self.new(spec.name, spec.version)
+        gem = self.new(spec.name, spec.version.to_s)
         gem.author = spec.authors || ''
         gem.homepage = spec.homepage || ''
         gem.summary = spec.summary || ''
@@ -82,7 +82,7 @@ module InstalledGemList
                         gemList << gem
                         cnt += 1
                     end
-                    gem = GemItem.new($1)
+                    gem = GemItem.new(line)
                     summary = ''
                 when /\s+Authors?:\s*(.*)\s*/i
                     gem.author = $1

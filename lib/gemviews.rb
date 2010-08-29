@@ -1,3 +1,4 @@
+require 'cgi'
 #
 #
 #
@@ -130,15 +131,20 @@ class DetailWin < Qt::DockWidget
         def insertHtml(str)
             self.concat(str)
         end
+
         def insertItem(name, value)
             if value && !value.empty?
-                insertHtml("<tr><td>#{name}</td><td>: #{value}</td></tr>")
+                insertHtml("<tr><td>#{name}</td><td>: #{CGI.escapeHTML(value)}</td></tr>")
             end
+        end
+
+        def insertDep(name, value, val2='')
+            insertHtml("<tr><td>#{name}</td><td>&nbsp; #{CGI.escapeHTML(value)}</td><td> &nbsp;: #{CGI.escapeHTML(val2)}</td></tr>")
         end
 
         def insertUrl(name, url)
             if url && !url.empty?
-                insertItem(name, "<a href='#{url}'>#{url}</a>")
+                insertHtml("<tr><td>#{name}</td><td>:<a href='#{url}'>#{url}</a></td></tr>")
             end
         end
     end
@@ -151,13 +157,32 @@ class DetailWin < Qt::DockWidget
         html.insertHtml("<font size='+1'>#{gem.package}</font><br>")
         html.insertHtml(gem.summary.gsub(/\n/,'<br>'))
         html.insertHtml("<table>")
-        html.insertItem('Author', gem.author)
+        author = gem.author
+        if author.kind_of? Array then
+            author = author.join(', ')
+        end
+        html.insertItem('Author', author)
+        html.insertItem('Version', gem.version)
         html.insertUrl('Rubyforge', gem.rubyforge)
         html.insertUrl('homepage', gem.homepage)
         html.insertUrl('platform', gem.platform) if gem.platform !~ /ruby/i
-        html.insertHtml("</table><p>")
-        if gem.spec and gem.spec.description then
-            html.insertHtml(gem.spec.description.gsub(/\n/,'<br>'))
+        html.insertHtml("</table>")
+        spec = gem.spec
+        if spec then
+            deps = spec.dependencies
+            if deps.size > 0 then
+                html.insertHtml('Dependencies')
+                html.insertHtml("<table>")
+                deps.each do |dep|
+                    html.insertDep('&nbsp;'*2 + dep.name, dep.requirement.to_s, dep.type.to_s)
+                end
+                html.insertHtml("</table>")
+            end
+        end
+        if spec then
+            if spec.description then
+                html.insertHtml('<p>'+spec.description.gsub(/\n/,'<br>'))
+            end
         end
 
         @textPart.insertHtml(html)
