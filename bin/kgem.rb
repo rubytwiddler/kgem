@@ -151,9 +151,7 @@ class MainWindow < KDE::MainWindow
         @mainTab = KDE::TabWidget.new
         @mainTab.tabBar.movable = true
         @mainTab.addTab(@searchWin, i18n("Search"))
-        @mainTab.addTab(@installedGemWin,
-            'Installed Gems'
-        )
+        @mainTab.addTab(@installedGemWin, i18n('Installed Gems'))
         @mainTab.addTab(@downloadedWin, i18n("Downloaded Gems"))
 
         setCentralWidget(@mainTab)
@@ -170,7 +168,9 @@ class MainWindow < KDE::MainWindow
     # virtual slot
     def closeEvent(ev)
         @actions.writeSettings
-        @installedGemWin.closeEvent(ev)
+        @searchWin.writeSettings
+        @installedGemWin.writeSettings
+        @downloadedWin.writeSettings
         @gemHelpdlg.closeEvent(ev)
         @previewWin.writeSettings
         super(ev)

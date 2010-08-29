@@ -7,7 +7,7 @@ class GemListTable < Qt::TableWidget
     class Item < Qt::TableWidgetItem
         def initialize(text)
             super(text)
-            self.flags = 1 | 32    # Qt::ItemIsSelectable | Qt::ItemIsEnabled
+            self.flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled
         end
 
         def gem
@@ -32,25 +32,6 @@ class GemListTable < Qt::TableWidget
         self.sortingEnabled = true
         sortByColumn(PACKAGE_NAME, Qt::AscendingOrder )
         @gems = {}
-        restoreColumnWidths
-    end
-
-    def restoreColumnWidths
-        config = $config.group("tbl-#{windowTitle}")
-        str = config.readEntry('columnWidths', "[]")
-        if str =~ /^\[[0-9\,\s]*\]$/ then
-            cols = str[1..-2].split(/,/).map(&:to_i)
-            if cols.length == columnCount then
-                columnCount.times do |i| setColumnWidth(i, cols[i]) end
-            end
-        end
-    end
-
-    def saveColumnWidths
-        config = $config.group("tbl-#{windowTitle}")
-        cols = []
-        columnCount.times do |i| cols << columnWidth(i) end
-        config.writeEntry('columnWidths', cols.inspect)
     end
 
     # caution ! : befor call, sortingEnabled must be set false.
@@ -97,10 +78,6 @@ class GemListTable < Qt::TableWidget
         end
     end
 
-    def closeEvent(ev)
-        saveColumnWidths
-        super(ev)
-    end
 
     slots   'filterChanged(const QString &)'
     def filterChanged(text)
@@ -109,7 +86,7 @@ class GemListTable < Qt::TableWidget
             return
         end
 
-        regxs = /#{text.strip}/i
+        regxs = /#{Regexp.escape(text.strip)}/i
         rowCount.times do |r|
             gem = gemAtRow(r)
             txt = [ gem.package, gem.summary, gem.author, gem.platform ].inject("") do |s, t|
@@ -135,8 +112,9 @@ class InstalledGemWin < Qt::Widget
         super(parent)
 
         createWidget
+        readSettings
 
-        Qt::Timer.singleShot(0, self, SLOT(:initializeAtStart))
+        Qt::Timer.singleShot(0, self, SLOT(:updateInstalledGemList))
     end
 
     def createWidget
@@ -174,6 +152,19 @@ class InstalledGemWin < Qt::Widget
         setLayout(lo)
     end
 
+
+    GroupName = "InstalledGemWindow"
+    def writeSettings
+        config = $config.group(GroupName)
+        config.writeEntry('Header', @installedGemsTable.horizontalHeader.saveState)
+    end
+
+    def readSettings
+        config = $config.group(GroupName)
+        @installedGemsTable.horizontalHeader.restoreState(config.readEntry('Header', @installedGemsTable.horizontalHeader.saveState))
+    end
+
+
     #------------------------------------
     #
     #
@@ -185,11 +176,6 @@ class InstalledGemWin < Qt::Widget
     def updateInstalledGemList
         gemList = InstalledGemList.get
         @installedGemsTable.updateGemList(gemList)
-    end
-
-    slots :initializeAtStart
-    def initializeAtStart
-        updateInstalledGemList
     end
 
     attr_accessor :gemViewer

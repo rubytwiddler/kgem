@@ -1,8 +1,10 @@
-
-*check install
-*check uninstall
-*unpack downloaded gem
-*settings - auto download.
-*package installation.
+*be able to specify install/download version.
+*sort downloads as number not string.
 *help menu
-*download message
+
+*clean up
+*prestine
+*cert
+*dependency
+*update
+*settings - add github

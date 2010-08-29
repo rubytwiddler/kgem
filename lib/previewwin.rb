@@ -49,6 +49,7 @@ class PreviewWin < Qt::Widget
         end
         m ? m[1] : 'Ruby'
     end
+
     def setText(title, text)
         @titleLabel.text = title
         @document.setReadWrite(true)

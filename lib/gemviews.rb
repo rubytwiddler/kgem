@@ -50,13 +50,13 @@ class DockGemViewer
     def install(gem)
         args = [ 'install' ]
         args.push( gem.package )
-        cmd = if Settings.installInSystemDirFlag then
-                "#{APP_DIR}/bin/gemcmdwin-super.rb"
-            else
-                "#{APP_DIR}/bin/gemcmdwin.rb"
-                args.push( '--user-install' )
-            end
-        @terminalWin.processStart(cmd, args) do
+        if Settings.installInSystemDirFlag then
+            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        else
+            args.push( '--user-install' )
+            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        end
+        @terminalWin.processStart(cmd, args) do |ret|
             notifyInstall
             notifyDownload
             if ret == 0 then
@@ -69,12 +69,13 @@ class DockGemViewer
         args = [ 'uninstall' ]
         args.push( gem.package )
         puts "installedLocal? : " + gem.installedLocal?.inspect
-        cmd = if gem.installedLocal? then
-                "#{APP_DIR}/bin/gemcmdwin.rb"
-            else
-                "#{APP_DIR}/bin/gemcmdwin-super.rb"
-            end
-        @terminalWin.processStart(cmd, args) do
+        if gem.installedLocal? then
+            args.push( '--user-install' )
+            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        else
+            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        end
+        @terminalWin.processStart(cmd, args) do |ret|
             notifyInstall
             if ret == 0 then
                 passiveMessage("Uninstalled #{gem.package}")
@@ -83,7 +84,14 @@ class DockGemViewer
     end
 
     def download(gem)
-        Dir.chdir(Settings.autoFetchDownloadDir.pathOrUrl)
+        if Settings.autoFetchFlag then
+            dir = Settings.autoFetchDir.pathOrUrl
+        else
+            dir = KDE::FileDialog::getExistingDirectory(Settings.autoFetchDir)
+            return unless dir
+            Settings.autoFetchDir.setUrl(dir)
+        end
+        Dir.chdir(dir)
         cmd = 'gem'
         args = [ 'fetch', gem.package ]
         @terminalWin.processStart(cmd, args) do |ret|
@@ -241,7 +249,7 @@ class TerminalWin < Qt::DockWidget
             KDE::MessageBox::information(self, msg)
             return
         end
-        puts "execute : " + cmd + " " + args.join(' ')
+        puts "execute : " + cmd.inspect + " " + args.join(' ').inspect
         @process.start(cmd, args)
         @finishProc = block
     end

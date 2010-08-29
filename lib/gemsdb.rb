@@ -109,4 +109,12 @@ module InstalledGemList
     def getCached
         @gemList ||= get
     end
+
+    def checkVersionGemInstalled(versionedName)
+        vname = versionedName.gsub(/\.gem$/, '')
+        gem = getCached.find do |gem|
+            gem.name + '-' + gem.version == vname
+        end
+        not gem.nil?
+    end
 end

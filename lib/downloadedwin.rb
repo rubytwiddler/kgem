@@ -1,3 +1,100 @@
+class FetchedGem
+    attr_accessor  :fileName, :directory, :installed
+
+    def filePath
+        File.join(@directory, @fileName)
+    end
+
+    def installed_str
+        @installed ? 'installed' : ''
+    end
+end
+
+#
+#
+#
+class DownloadedTable < Qt::TableWidget
+    #
+    class Item < Qt::TableWidgetItem
+        def initialize(text)
+            super(text)
+            self.flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled
+        end
+    end
+
+    def initialize
+        super(0,3)
+
+        self.windowTitle = i18n('Search Result')
+        setHorizontalHeaderLabels(['file name', 'directory', 'installed'])
+        self.horizontalHeader.stretchLastSection = true
+        self.selectionBehavior = Qt::AbstractItemView::SelectRows
+        self.alternatingRowColors = true
+        self.sortingEnabled = true
+        sortByColumn(0, Qt::AscendingOrder)
+        @fetchedGems = {}
+    end
+
+    def addPackage(row, fetchedGem)
+        nameItem = Item.new(fetchedGem.fileName)
+        @fetchedGems[nameItem] = fetchedGem    # 0 column item is hash key.
+        setItem( row, 0, nameItem )
+        setItem( row, 1, Item.new(fetchedGem.directory) )
+        setItem( row, 2, Item.new(fetchedGem.installed_str) )
+    end
+
+    def updateGemList(gemList)
+        sortFlag = self.sortingEnabled
+        self.sortingEnabled = false
+
+        clearContents
+        self.rowCount = gemList.length
+        gemList.each_with_index do |g,r|
+            addPackage(r, g)
+        end
+
+        self.sortingEnabled = sortFlag
+    end
+
+    def gem(item)
+        gemAtRow(item.row)
+    end
+
+    def gemAtRow(row)
+        @fetchedGems[item(row,0)]       # use 0 column item as hash key.
+    end
+
+    def currentGem
+        gemAtRow(currentRow)
+    end
+
+    def showall
+        rowCount.times do |r|
+            showRow(r)
+        end
+    end
+
+    slots 'filterChanged(const QString &)'
+    def filterChanged(text)
+        unless text && !text.empty?
+            showall
+            return
+        end
+
+        regxs = /#{Regexp.escape(text.strip)}/i
+        rowCount.times do |r|
+            txt = item(r,0).text.gsub(/\.gem$/, '')
+            if regxs =~ txt then
+                showRow(r)
+            else
+                hideRow(r)
+            end
+        end
+    end
+end
+
+
+#----------------------------------------------------------------------------
 #
 #
 #
@@ -5,69 +102,81 @@ class DownloadedWin < Qt::Widget
     def initialize(parent=nil)
         super(parent)
 
-        @filePathMap = {}
         createWidget
+        readSettings
 
         Qt::Timer.singleShot(0, self, SLOT(:updateList))
     end
 
+    GemDirs = %x{ gem environment gempath }.split(/:/).map! do |dir|
+        File.join(dir.strip, 'cache')
+    end
+
     def createWidget
-        @gemFileList = Qt::ListWidget.new
+        @gemFileList = DownloadedTable.new
         @filterLine = KDE::LineEdit.new do |w|
             connect(w,SIGNAL('textChanged(const QString &)'),
-                    self, SLOT('filterChanged(const QString &)'))
+                    @gemFileList, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
 
         @updateBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), 'Install')
         @deleteBtn = KDE::PushButton.new(KDE::Icon.new('edit-delete'), 'Delete')
+        @unpackBtn = KDE::PushButton.new('Unpack')
 
         #
-        connect(@gemFileList, SIGNAL('itemClicked(QListWidgetItem *)'), self, SLOT('itemClicked(QListWidgetItem *)'))
+        connect(@updateBtn, SIGNAL(:clicked), self, SLOT(:updateList))
+        connect(@gemFileList, SIGNAL('itemClicked(QTableWidgetItem *)'), self, SLOT('itemClicked(QTableWidgetItem *)'))
         connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
         connect(@deleteBtn, SIGNAL(:clicked), self, SLOT(:delete))
-        connect(@updateBtn, SIGNAL(:clicked),
-                self, SLOT(:updateList))
+        connect(@unpackBtn, SIGNAL(:clicked), self, SLOT(:unpack))
 
         # layout
         lo = Qt::VBoxLayout.new
         lo.addWidgets('Filter:', @filterLine)
         lo.addWidget(@gemFileList)
-        lo.addWidgets(@updateBtn, nil, @installBtn, @deleteBtn)
+        lo.addWidgets(@updateBtn, nil, @installBtn, @unpackBtn, @deleteBtn)
         setLayout(lo)
     end
 
-    def getCurrentItem
-        row = @gemFileList.currentRow
-        return nil unless row < @gemFileList.count
-        @gemFileList.item(row)
+    GroupName = "DownloadedGemWindow"
+    def writeSettings
+        config = $config.group(GroupName)
+        config.writeEntry('Header', @gemFileList.horizontalHeader.saveState)
     end
 
-    # virtual slot function
+    def readSettings
+        config = $config.group(GroupName)
+        @gemFileList.horizontalHeader.restoreState(config.readEntry('Header', @gemFileList.horizontalHeader.saveState))
+    end
+
+
     slots :updateList
     def updateList
         def allFilesInDir(dir)
             exDir = File.expand_path(dir)
-            Dir.chdir(dir)
+            return [] unless File.directory?(exDir)
+            Dir.chdir(exDir)
             files = Dir['*.gem']
-            files.each do |f|
-                @filePathMap[f] = File.join(exDir, f)
+            gems = files.map do |f|
+                fGem = FetchedGem.new
+                fGem.fileName = f
+                fGem.directory = exDir
+                fGem.installed = InstalledGemList.checkVersionGemInstalled(f)
+                fGem
             end
-            files
-        end
-        @filePathMap = {}
-        files = allFilesInDir(Settings.autoFetchDownloadDir.pathOrUrl) +
-                allFilesInDir("/usr/lib/ruby/gems/1.8/cache/") +
-                allFilesInDir("#{ENV['HOME']}/.gem/ruby/1.8/cache/")
-
-        # update ListWidget
-        @gemFileList.clear
-        files.sort.each do |f|
-            @gemFileList.addItem(f)
         end
 
-        @selectedGemFile = nil
+        dirs = GemDirs + [ Settings.autoFetchDir.pathOrUrl ]
+        gems = dirs.uniq.inject([]) do |res, dir|
+            res + allFilesInDir(dir)
+        end
+
+        #
+        @gemFileList.updateGemList(gems)
+
+        @filterLine.text = ''
     end
 
     def notifyDownload
@@ -79,10 +188,11 @@ class DownloadedWin < Qt::Widget
     end
 
     attr_accessor :gemViewer
-    slots  'itemClicked(QListWidgetItem *)'
+    slots  'itemClicked(QTableWidgetItem *)'
     def itemClicked(item)
-        @selectedGemFile = item.text
-        filePath = @filePathMap[item.text]
+        fetchedGem = @gemFileList.gem(item)
+        return unless fetchedGem
+        filePath = fetchedGem.filePath
         return unless File.exist?(filePath)
 
         files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
@@ -101,13 +211,10 @@ class DownloadedWin < Qt::Widget
 
     slots :install
     def install
-        return unless @selectedGemFile
-        isInstalled = InstalledGemList.getCached.find do |g|
-            (g.name + '-' + g.version + '.gem') == @selectedGemFile
-        end
-        return if isInstalled
+        fetchedGem = @gemFileList.currentGem
+        return unless fetchedGem and !fetchedGem.installed
 
-        filePath = @filePathMap[@selectedGemFile]
+        filePath = fetchedGem.filePath
         spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
         gem = GemItem::parseGemSpec(spec)
         @gemViewer.install(gem)
@@ -115,28 +222,30 @@ class DownloadedWin < Qt::Widget
 
     slots :delete
     def delete
-        return unless @selectedGemFile
-        isInstalled = InstalledGemList.getCached.find do |g|
-            (g.name + '-' + g.version + '.gem') == @selectedGemFile
-        end
-        filePath = @filePathMap[@selectedGemFile]
-        if File.writable?(filePath) and !isInstalled then
+        fetchedGem = @gemFileList.currentGem
+        return unless fetchedGem and  !(GemDirs.include?(fetchedGem.directory) \
+                                        and fetchedGem.installed)
+
+        filePath = fetchedGem.filePath
+        if File.writable?(filePath) then
             File.unlink(filePath)
+            passiveMessage(i18n('Deleted ') + filePath)
             updateList
         end
     end
 
-    slots 'filterChanged(const QString &)'
-    def filterChanged(text)
-        if text.nil? or text.empty? then
-            regxs = nil
+    slots  :unpack
+    def unpack
+        fetchedGem = @gemFileList.currentGem
+        fileName = fetchedGem.fileName
+        if Settings.autoUnpackFlag then
+            dir = Settings.autoUnpackDir.pathOrUrl
         else
-            regxs = /#{text.strip}/i
+            dir = KDE::FileDialog::getExistingDirectory(Settings.autoUnpackDir)
+            return unless dir
+            Settings.autoUnpackDir.setUrl(dir)
         end
-
-        @gemFileList.count.times do |idx|
-            item = @gemFileList.item(idx)
-            item.setHidden(!(regxs.nil? or regxs =~ item.text))
-        end
+        %x{ gem unpack #{fileName} --target=#{dir.shellescape} }
     end
+
 end
