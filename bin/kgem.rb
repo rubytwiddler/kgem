@@ -32,7 +32,7 @@ require 'ktexteditor'
 $:.unshift(LIB_DIR)
 require "mylibs"
 require "settings"
-require "gemsdb"
+require "gemitem"
 require "installedwin"
 require "searchwin"
 require "downloadedwin"
@@ -56,7 +56,6 @@ class MainWindow < KDE::MainWindow
         createDlg
         @actions.readSettings
         setAutoSaveSettings
-
     end
 
 
@@ -118,6 +117,7 @@ class MainWindow < KDE::MainWindow
         helpMenu.addAction(openDocUrlAction)
         helpMenu.addAction(openReportIssueUrlAction)
         helpMenu.addAction(openSourceAction)
+        helpMenu.addAction(gemHelpAction)
         helpMenu.addSeparator
         helpMenu.addAction(openAboutAction)
 
@@ -177,6 +177,7 @@ class MainWindow < KDE::MainWindow
         @settingsDlg = SettingsDlg.new(self)
         @gemHelpdlg = GemHelpDlg.new(self)
     end
+
 
 
     #------------------------------------

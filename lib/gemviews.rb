@@ -1,5 +1,128 @@
 require 'cgi'
-#
+
+
+class SelectInstallVerDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Installing Ruby Gem')
+
+        @msgLine = Qt::Label.new
+        @msgLine.wordWrap = true
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @checkOtherVersion = KDE::PushButton.new(i18n('Check Other Version Availability'))
+        connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
+        @versionComboBox = Qt::ComboBox.new
+        @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
+
+
+        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
+        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
+        @sheBangCheckBox = Qt::CheckBox.new(i18n('Rewrite the shebang line on installed scripts to use /usr/bin/env'))
+        @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
+        @utestCheckBox = Qt::CheckBox.new(i18n('Run unit tests prior to installation'))
+        @binWrapCheckBox = Qt::CheckBox.new(i18n('Use bin wrappers for executables'))
+#         @policyCheckBox = Qt::ComboBox.new
+#             Qt::Label.new(i18n('Specify gem trust policy'))
+        @ignoreDepsCheckBox = Qt::CheckBox.new(i18n('Do not install any required dependent gems'))
+        @includeDepsCheckBox = Qt::CheckBox.new(i18n('Unconditionally install the required dependent gems'))
+        @developmentDepsCheckBox = Qt::CheckBox.new(i18n('Install any additional development dependencies'))
+#         optionsGroupBox = Qt::GroupBox.new(i18n('Show Options'))
+#         optionsGroupBox.
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@msgLine)
+            l.addWidgets(@versionComboBox, @checkOtherVersion)
+            l.addWidget(@skipVersionCheck)
+            l.addWidget(@rdocCheckBox)
+            l.addWidget(@riCheckBox)
+            l.addWidget(@sheBangCheckBox)
+            l.addWidget(@forceCheckBox)
+            l.addWidget(@utestCheckBox)
+            l.addWidget(@binWrapCheckBox)
+            l.addWidget(@ignoreDepsCheckBox)
+            l.addWidget(@includeDepsCheckBox)
+            l.addWidget(@developmentDepsCheckBox)
+            l.addWidgetAtRight(@okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    slots :checkOtherVersion
+    def checkOtherVersion
+        @versionComboBox.clear
+        res = %x{ gem list #{@gem.name} -a -r }
+        res = res[/#{Regexp.escape(@gem.name)}\s+\([\w\d.,\s]+\)/]
+        return res unless res
+
+        vers = res[/\(.*\)/][1..-2].split(/[\s,]+/)
+        vers.each do |v|
+            @versionComboBox.addItem(v.strip)
+        end
+        @versionComboBox.currentIndex = 0
+    end
+
+    def selectVersion(gem)
+        @gem = gem
+        @versionComboBox.clear
+        @versionComboBox.addItem(gem.version)
+        @msgLine.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
+        exec == Qt::Dialog::Accepted
+    end
+
+    def makeInstallArgs
+        args = [ 'install' ]
+        args.push( @gem.package )
+        args.push( '-r' )
+        if @versionComboBox.currentIndex != 0 then
+            args.push( '-v' )
+            args.push( @versionComboBox.currentText )
+        end
+        if @rdocCheckBox.checked then
+            args.push( '--rdoc' )
+        else
+            args.push( '--no-rdoc' )
+        end
+        if @riCheckBox.checked then
+            args.push( '--ri' )
+        else
+            args.push( '--no-ri' )
+        end
+        if @sheBangCheckBox.checked then
+            args.push( '--env-shebang' )
+        else
+            args.push( '--no-env-shebang' )
+        end
+        if @forceCheckBox.checked then
+            args.push( '--force' )
+        else
+            args.push( '--no-force' )
+        end
+        if @utestCheckBox.checked then
+            args.push( '--test' )
+        else
+            args.push( '--no-test' )
+        end
+        if @binWrapCheckBox.checked then
+            args.push( '--wrappers' )
+        else
+            args.push( '--no-wrappers' )
+        end
+        if @ignoreDepsCheckBox.checked then
+            args.push( '--ignore-dependencies' )
+        end
+        if @includeDepsCheckBox.checked then
+            args.push( '--include-dependencies' )
+        end
+        args
+    end
+end
+
+
+#--------------------------------------------------------------------------------
 #
 #
 class DockGemViewer
@@ -12,6 +135,7 @@ class DockGemViewer
         @installWatcher  = []
         @previewWin = previewWin
 
+        @selectInstallVerDlg = SelectInstallVerDlg.new
         @detailView.setGetSpecProc(
             Proc.new do |gem|
                 res = %x{ gem specification #{gem.name} -b  --marshal }
@@ -60,8 +184,9 @@ class DockGemViewer
 
 
     def install(gem)
-        args = [ 'install' ]
-        args.push( gem.package )
+        return unless @selectInstallVerDlg.selectVersion(gem)
+
+        args = @selectInstallVerDlg.makeInstallArgs
         if Settings.installInSystemDirFlag then
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         else

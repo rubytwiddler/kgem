@@ -131,7 +131,7 @@ class YesNoDlg < Qt::Dialog
 
     def ask(question)
         @msgLine.text = question
-        exec == Qt::Dialog::Accepted ? true : false
+        exec == Qt::Dialog::Accepted
     end
 end
 

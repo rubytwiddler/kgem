@@ -13,13 +13,20 @@ class Settings < SettingsBase
 
         setCurrentGroup("Preferences")
 
-        # meta programed version.
+        # folder settings.
         addBoolItem(:installInSystemDirFlag, true)
         addBoolItem(:autoFetchFlag, false)
         addUrlItem(:autoFetchDir,
                    File.join(KDE::GlobalSettings.downloadPath, 'gem_cache'))
         addBoolItem(:autoUnpackFlag, false)
         addUrlItem(:autoUnpackDir, File.join(KDE::GlobalSettings.downloadPath, 'gem_src'))
+        addBoolItem(:installLatestFlag, false)
+        addBoolItem(:downloadLatestFlag, false)
+
+        # install option settings.
+        addBoolItem(:installRdocFlag, true)
+        addBoolItem(:installRiFlag, true)
+
     end
 end
 
@@ -46,6 +53,8 @@ class GeneralSettingsPage < Qt::Widget
         @unpackUrl.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoUnpackCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoUnpackChanged(int)'))
+        @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install Latest Version to skip version selection."))
+        @downloadLatestCheckBox = Qt::CheckBox.new(i18n("Always Download Latest Version to skip version selection."))
 
         # objectNames
         #  'kcfg_' + class Settings's instance name.
@@ -54,6 +63,8 @@ class GeneralSettingsPage < Qt::Widget
         @downloadUrl.objectName = 'kcfg_autoFetchDir'
         @autoUnpackCheckBox.objectName = 'kcfg_autoUnpackFlag'
         @unpackUrl.objectName = 'kcfg_autoUnpackDir'
+        @installLatestCheckBox.objectName = 'kcfg_installLatestFlag'
+        @downloadLatestCheckBox.objectName = 'kcfg_downloadLatestFlag'
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
@@ -62,6 +73,8 @@ class GeneralSettingsPage < Qt::Widget
             l.addWidgets('   ', @downloadUrl)
             l.addWidget(@autoUnpackCheckBox)
             l.addWidgets('   ', @unpackUrl)
+            l.addWidget(@installLatestCheckBox)
+            l.addWidget(@downloadLatestCheckBox)
             l.addStretch
         end
         setLayout(lo)
@@ -76,6 +89,11 @@ class GeneralSettingsPage < Qt::Widget
     def autoUnpackChanged(state)
         @unpackUrl.enabled = state == Qt::Checked
     end
+end
+
+
+class InstallOptionPage < Qt::Widget
+
 end
 
 class SettingsDlg < KDE::ConfigDialog
