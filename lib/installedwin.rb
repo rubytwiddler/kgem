@@ -123,6 +123,8 @@ class InstalledGemWin < Qt::Widget
         @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
         @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
+        @generateRdocBtn = KDE::PushButton.new(KDE::Icon.new('document-new'), 'Generate RDoc/ri')
+        @updateBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update')
 
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
 
@@ -146,8 +148,8 @@ class InstalledGemWin < Qt::Widget
                 w.addWidgets('Filter:', @filterInstalledLineEdit)
                 w.addWidget(@installedGemsTable)
                 w.addWidgets(@updateInstalledBtn, nil,
-                                          @viewDirBtn, @viewRdocBtn,
-                                          @uninstallBtn)
+                            @viewDirBtn, @viewRdocBtn,
+                             @generateRdocBtn, @updateBtn, @uninstallBtn)
             end
         setLayout(lo)
     end

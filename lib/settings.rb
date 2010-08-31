@@ -26,7 +26,13 @@ class Settings < SettingsBase
         # install option settings.
         addBoolItem(:installRdocFlag, true)
         addBoolItem(:installRiFlag, true)
-
+        addBoolItem(:installSheBangFlag, false)
+        addBoolItem(:installUnitTestFlag, false)
+        addBoolItem(:installBinWrapFlag, false)
+        addBoolItem(:installIgnoreDepsFlag, false)
+        addBoolItem(:installIncludeDepsFlag, false)
+        addBoolItem(:installDevelopmentDepsFlag, false)
+        addStringItem(:installTrustPolicy, 'NoSecurity')
     end
 end
 
@@ -92,13 +98,61 @@ class GeneralSettingsPage < Qt::Widget
 end
 
 
-class InstallOptionPage < Qt::Widget
+class InstallOptionsPage < Qt::Widget
+    include Singleton
 
+    def initialize(parent=nil)
+        super(parent)
+        createWidget
+    end
+
+    def createWidget
+        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
+        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
+        @sheBangCheckBox = Qt::CheckBox.new(i18n('Rewrite the shebang line on installed scripts to use /usr/bin/env'))
+        @utestCheckBox = Qt::CheckBox.new(i18n('Run unit tests prior to installation'))
+        @binWrapCheckBox = Qt::CheckBox.new(i18n('Use bin wrappers for executables'))
+#         @policyCheckBox = Qt::ComboBox.new
+#             Qt::Label.new(i18n('Specify gem trust policy'))
+        @ignoreDepsCheckBox = Qt::CheckBox.new(i18n('Do not install any required dependent gems'))
+        @includeDepsCheckBox = Qt::CheckBox.new(i18n('Unconditionally install the required dependent gems'))
+        @developmentDepsCheckBox = Qt::CheckBox.new(i18n('Install any additional development dependencies'))
+        @trustPolicyComboBox = Qt::ComboBox.new
+        @trustPolicyComboBox.addItems(%w{ NoSecurity LowSecurity MediumSecurity HighSecurity })
+
+        # objectNames
+        #  'kcfg_' + class Settings's instance name.
+        @rdocCheckBox.objectName = 'kcfg_installRdocFlag'
+        @riCheckBox.objectName = 'kcfg_installRiFlag'
+        @sheBangCheckBox.objectName = 'kcfg_installSheBangFlag'
+        @utestCheckBox.objectName = 'kcfg_installUnitTestFlag'
+        @binWrapCheckBox.objectName = 'kcfg_installBinWrapFlag'
+        @ignoreDepsCheckBox.objectName = 'kcfg_installIgnoreDepsFlag'
+        @includeDepsCheckBox.objectName = 'kcfg_installIncludeDepsFlag'
+        @developmentDepsCheckBox.objectName = 'kcfg_installDevelopmentDepsFlag'
+        @trustPolicyComboBox.objectName = 'kcfg_installTrustPolicy'
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@rdocCheckBox)
+            l.addWidget(@riCheckBox)
+            l.addWidget(@sheBangCheckBox)
+            l.addWidget(@utestCheckBox)
+            l.addWidget(@binWrapCheckBox)
+            l.addWidget(@ignoreDepsCheckBox)
+            l.addWidget(@includeDepsCheckBox)
+            l.addWidget(@developmentDepsCheckBox)
+            l.addWidgets(i18n('Trust Policy :'), @trustPolicyComboBox, nil)
+        end
+        setLayout(lo)
+    end
 end
 
 class SettingsDlg < KDE::ConfigDialog
     def initialize(parent)
         super(parent, "Settings", Settings.instance)
+
         addPage(GeneralSettingsPage.new, i18n("General"), 'preferences-system')
+        addPage(InstallOptionsPage.instance, i18n("Install Options"), 'applications-other')
     end
 end

@@ -16,37 +16,15 @@ class SelectInstallVerDlg < Qt::Dialog
         connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
         @versionComboBox = Qt::ComboBox.new
         @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
-
-
-        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
-        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
-        @sheBangCheckBox = Qt::CheckBox.new(i18n('Rewrite the shebang line on installed scripts to use /usr/bin/env'))
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
-        @utestCheckBox = Qt::CheckBox.new(i18n('Run unit tests prior to installation'))
-        @binWrapCheckBox = Qt::CheckBox.new(i18n('Use bin wrappers for executables'))
-#         @policyCheckBox = Qt::ComboBox.new
-#             Qt::Label.new(i18n('Specify gem trust policy'))
-        @ignoreDepsCheckBox = Qt::CheckBox.new(i18n('Do not install any required dependent gems'))
-        @includeDepsCheckBox = Qt::CheckBox.new(i18n('Unconditionally install the required dependent gems'))
-        @developmentDepsCheckBox = Qt::CheckBox.new(i18n('Install any additional development dependencies'))
-#         optionsGroupBox = Qt::GroupBox.new(i18n('Show Options'))
-#         optionsGroupBox.
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@msgLine)
-            l.addWidgets(@versionComboBox, @checkOtherVersion)
-            l.addWidget(@skipVersionCheck)
-            l.addWidget(@rdocCheckBox)
-            l.addWidget(@riCheckBox)
-            l.addWidget(@sheBangCheckBox)
+            l.addWidgets(@versionComboBox, @checkOtherVersion, nil)
             l.addWidget(@forceCheckBox)
-            l.addWidget(@utestCheckBox)
-            l.addWidget(@binWrapCheckBox)
-            l.addWidget(@ignoreDepsCheckBox)
-            l.addWidget(@includeDepsCheckBox)
-            l.addWidget(@developmentDepsCheckBox)
-            l.addWidgetAtRight(@okBtn, @cancelBtn)
+            l.addWidget(InstallOptionsPage.instance)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
         end
         setLayout(lo)
     end
@@ -81,42 +59,50 @@ class SelectInstallVerDlg < Qt::Dialog
             args.push( '-v' )
             args.push( @versionComboBox.currentText )
         end
-        if @rdocCheckBox.checked then
-            args.push( '--rdoc' )
-        else
-            args.push( '--no-rdoc' )
-        end
-        if @riCheckBox.checked then
-            args.push( '--ri' )
-        else
-            args.push( '--no-ri' )
-        end
-        if @sheBangCheckBox.checked then
-            args.push( '--env-shebang' )
-        else
-            args.push( '--no-env-shebang' )
-        end
         if @forceCheckBox.checked then
             args.push( '--force' )
         else
             args.push( '--no-force' )
         end
-        if @utestCheckBox.checked then
+
+        options = Settings.instance
+        if options.installRdocFlag then
+            args.push( '--rdoc' )
+        else
+            args.push( '--no-rdoc' )
+        end
+        if options.installRiFlag then
+            args.push( '--ri' )
+        else
+            args.push( '--no-ri' )
+        end
+        if options.installSheBangFlag then
+            args.push( '--env-shebang' )
+        else
+            args.push( '--no-env-shebang' )
+        end
+        if options.installUnitTestFlag then
             args.push( '--test' )
         else
             args.push( '--no-test' )
         end
-        if @binWrapCheckBox.checked then
+        if options.installBinWrapFlag then
             args.push( '--wrappers' )
         else
             args.push( '--no-wrappers' )
         end
-        if @ignoreDepsCheckBox.checked then
+        if options.installIgnoreDepsFlag then
             args.push( '--ignore-dependencies' )
         end
-        if @includeDepsCheckBox.checked then
+        if options.installIncludeDepsFlag then
             args.push( '--include-dependencies' )
         end
+        if options.installDevelopmentDepsFlag then
+            args.push( '--development' )
+        end
+        args.push( '-P' )
+        args.push( options.installTrustPolicy)
+
         args
     end
 end
@@ -135,7 +121,6 @@ class DockGemViewer
         @installWatcher  = []
         @previewWin = previewWin
 
-        @selectInstallVerDlg = SelectInstallVerDlg.new
         @detailView.setGetSpecProc(
             Proc.new do |gem|
                 res = %x{ gem specification #{gem.name} -b  --marshal }
@@ -184,6 +169,8 @@ class DockGemViewer
 
 
     def install(gem)
+        @selectInstallVerDlg ||= SelectInstallVerDlg.new
+
         return unless @selectInstallVerDlg.selectVersion(gem)
 
         args = @selectInstallVerDlg.makeInstallArgs

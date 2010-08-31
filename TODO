@@ -1,10 +1,14 @@
 *be able to specify install/download version.
 *Rakefile : gem package.
+*respect .gemrc
+*update
+*generate rdoc/ri
 
+*allow only one item selected.
+*version check progress dialog
+*check
 *clean up
 *prestine
 *cert
-*update
-*generate rdoc/ri
 *settings - add github
 *bug text cr/lf
