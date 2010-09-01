@@ -1,13 +1,76 @@
 require 'cgi'
 
+#--------------------------------------------------------------------------------
+#
+#
+class GenerateRdocDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Generate RDoc/ri')
 
+        @msgLabel = Qt::Label.new(i18n('Generate RDoc/ri'))
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @allCheckBox = Qt::CheckBox.new(i18n('Generate RDoc/RI documentation for all'))
+        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
+        @rdocCheckBox.checked = true
+        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
+        @riCheckBox.checked = true
+        @overwriteCheckBox = Qt::CheckBox.new(i18n('Overwrite installed documents'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@allCheckBox)
+            l.addWidget(@rdocCheckBox)
+            l.addWidget(@riCheckBox)
+            l.addWidget(@overwriteCheckBox)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    def all?
+        @allCheckBox.checked
+    end
+    def makeRdocArgs(gem)
+        args = ['rdoc']
+        return nil unless @rdocCheckBox.checked or @riCheckBox.checked
+
+        args.push(gem.package)
+        if @allCheckBox.checked
+            args.push('--all')
+        end
+        if @rdocCheckBox.checked
+            args.push('--rdoc')
+        else
+            args.push('--no-rdoc')
+        end
+        if @riCheckBox.checked
+            args.push('--ri')
+        else
+            args.push('--no-ri')
+        end
+        if @overwriteCheckBox.checked
+            args.push('--overwrite')
+        else
+            args.push('--no-overwrite')
+        end
+        args
+    end
+end
+
+#--------------------------------------------------------------------------------
+#
+#
 class SelectInstallVerDlg < Qt::Dialog
     def initialize(parent=nil)
         super(parent)
         self.windowTitle = i18n('Installing Ruby Gem')
 
-        @msgLine = Qt::Label.new
-        @msgLine.wordWrap = true
+        @msgLabel = Qt::Label.new
+        @msgLabel.wordWrap = true
         @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
         @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
         connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
@@ -20,7 +83,7 @@ class SelectInstallVerDlg < Qt::Dialog
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@msgLine)
+            l.addWidget(@msgLabel)
             l.addWidgets(@versionComboBox, @checkOtherVersion, nil)
             l.addWidget(@forceCheckBox)
             l.addWidget(InstallOptionsPage.instance)
@@ -47,7 +110,7 @@ class SelectInstallVerDlg < Qt::Dialog
         @gem = gem
         @versionComboBox.clear
         @versionComboBox.addItem(gem.version)
-        @msgLine.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
+        @msgLabel.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
         exec == Qt::Dialog::Accepted
     end
 
@@ -170,7 +233,6 @@ class DockGemViewer
 
     def install(gem)
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
-
         return unless @selectInstallVerDlg.selectVersion(gem)
 
         args = @selectInstallVerDlg.makeInstallArgs
@@ -224,6 +286,25 @@ class DockGemViewer
                 passiveMessage("Downloaded #{gem.package}")
             else
                 passiveMessage("Download #{gem.package} failed.")
+            end
+        end
+    end
+
+    def generateRdoc(gem)
+        @GenerateRdocDlg ||= GenerateRdocDlg.new
+        return unless @GenerateRdocDlg.exec == Qt::Dialog::Accepted
+
+        args = @GenerateRdocDlg.makeRdocArgs(gem)
+        return unless args
+        puts "installedLocal? : " + gem.installedLocal?.inspect
+        if !@GenerateRdocDlg.all? and gem.installedLocal? then
+            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        else
+            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        end
+        @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("Generated rdoc/ri for #{gem.package}")
             end
         end
     end

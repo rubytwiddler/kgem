@@ -50,10 +50,10 @@ class GemListTable < Qt::TableWidget
         sortFlag = self.sortingEnabled
         self.sortingEnabled = false
 
-        self.clearContents
+        clearContents
         self.rowCount = gemList.length
         gemList.each_with_index do |g, r|
-            self.addPackage(r, g)
+            addPackage(r, g)
         end
 
         self.sortingEnabled = sortFlag
@@ -120,11 +120,11 @@ class InstalledGemWin < Qt::Widget
     def createWidget
         @installedGemsTable = GemListTable.new('installed')
 
-        @updateInstalledBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
+        @updateListBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
         @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
         @generateRdocBtn = KDE::PushButton.new(KDE::Icon.new('document-new'), 'Generate RDoc/ri')
-        @updateBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update')
+        @updateGemBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update')
 
         @uninstallBtn = KDE::PushButton.new(KDE::Icon.new('list-remove'), 'Uninstall')
 
@@ -138,18 +138,20 @@ class InstalledGemWin < Qt::Widget
         connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
         connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
         connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
-        connect(@updateInstalledBtn, SIGNAL(:clicked),
+        connect(@updateListBtn, SIGNAL(:clicked),
                 self, SLOT(:updateInstalledGemList))
         connect(@installedGemsTable, SIGNAL('itemClicked(QTableWidgetItem *)'),
                     self, SLOT('itemClicked(QTableWidgetItem *)'))
+        connect(@generateRdocBtn, SIGNAL(:clicked), self, SLOT(:generateRdoc))
+        connect(@updateGemBtn, SIGNAL(:clicked), self, SLOT(:updateGem))
 
         # layout
         lo = Qt::VBoxLayout.new do |w|
                 w.addWidgets('Filter:', @filterInstalledLineEdit)
                 w.addWidget(@installedGemsTable)
-                w.addWidgets(@updateInstalledBtn, nil,
+                w.addWidgets(@updateListBtn, nil,
                             @viewDirBtn, @viewRdocBtn,
-                             @generateRdocBtn, @updateBtn, @uninstallBtn)
+                             @generateRdocBtn, @updateGemBtn, @uninstallBtn)
             end
         setLayout(lo)
     end
@@ -174,7 +176,20 @@ class InstalledGemWin < Qt::Widget
         updateInstalledGemList
     end
 
-    slots   :updateInstalledGemList
+    slots :updateGem
+    def updateGem
+
+    end
+
+    slots :generateRdoc
+    def generateRdoc
+        gem = @installedGemsTable.currentGem
+        return unless gem
+
+        @gemViewer.generateRdoc(gem)
+    end
+
+    slots :updateInstalledGemList
     def updateInstalledGemList
         gemList = InstalledGemList.get
         @installedGemsTable.updateGemList(gemList)
@@ -254,5 +269,4 @@ class InstalledGemWin < Qt::Widget
 
         @gemViewer.uninstall(gem)
     end
-
 end
