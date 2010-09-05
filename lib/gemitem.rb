@@ -36,8 +36,21 @@ class GemItem
         @downloads = 0
     end
 
-    def latestVersion
+    def nowVersion
         version.split(/,/, 2).first
+    end
+
+    def versions
+        return @versions if instance_variable_defined? :@versions
+
+        res = %x{ gem list #{name} -a -r }
+        res =~ /#{Regexp.escape(name)}\s+\(([^\)]+)\)/
+        res = $1.split(/,\s+/).map { |v| v.split(/ /).first.strip }
+        if res then
+            @versions = res
+        else
+            @versions = nil
+        end
     end
 
     def installedLocal?

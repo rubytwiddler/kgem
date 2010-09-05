@@ -188,6 +188,7 @@ class MainWindow < KDE::MainWindow
             Gem::GemRunner.new.run @args
         rescue Gem::SystemExitException => e
             @winUi.write( e.message )
+            $exitCode = 1
         end
     end
 
@@ -324,6 +325,8 @@ end
 #--------------------------------------------------------------------------
 #
 #
+$exitCode = 0
+
 about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION)
 KDE::CmdLineArgs.init([], about)
 
@@ -335,3 +338,5 @@ $app.setTopWidget(win)
 
 win.show
 $app.exec
+
+$exitCode

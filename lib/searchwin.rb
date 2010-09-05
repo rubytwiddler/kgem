@@ -24,6 +24,7 @@ class SearchTable < Qt::TableWidget
         setHorizontalHeaderLabels(['name', 'version', 'downloads'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
+        self.selectionMode = Qt::AbstractItemView::SingleSelection
         self.alternatingRowColors = true
         self.sortingEnabled = true
         sortByColumn(0, Qt::AscendingOrder)

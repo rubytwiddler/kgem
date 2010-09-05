@@ -64,12 +64,9 @@ class MainWindow < KDE::MainWindow
         quitAction = KDE::Action.new(KDE::Icon.new('exit'), '&Quit', self)
         quitAction.setShortcut(KDE::Shortcut.new('Ctrl+Q'))
         @actions.addAction(quitAction.text, quitAction)
-        gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
-        @actions.addAction(gemHelpAction.text, gemHelpAction)
 
         # connect actions
         connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
-        connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
 
 
         # settings menu
@@ -94,6 +91,11 @@ class MainWindow < KDE::MainWindow
 
 
         # Help menu
+        gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
+        gemHelpAction .setShortcut(KDE::Shortcut.new('F7'))
+        @actions.addAction(gemHelpAction.text, gemHelpAction)
+        connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
+
         aboutDlg = KDE::AboutApplicationDialog.new($about)
         openAboutAction = KDE::Action.new(KDE::Icon.new('kgem'),
                                           i18n('About kgem'), self)
@@ -148,7 +150,7 @@ class MainWindow < KDE::MainWindow
         @previewWin = PreviewWin.new
 
         # tab windows
-        @gemViewer = DockGemViewer.new(@detailWin, @fileListWin, @terminalWin, @previewWin)
+        @gemViewer = DockGemViewer.new(self, @detailWin, @fileListWin, @terminalWin, @previewWin)
         @installedGemWin = InstalledGemWin.new(self) do |w|
             w.gemViewer = @gemViewer
             @gemViewer.addInstallWatcher(w)

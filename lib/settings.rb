@@ -7,6 +7,8 @@ require 'kio'
 require "mylibs"
 
 
+TrustPolicies = %w{ NoSecurity LowSecurity MediumSecurity HighSecurity }
+
 class Settings < SettingsBase
     def initialize
         super()
@@ -32,12 +34,18 @@ class Settings < SettingsBase
         addBoolItem(:installIgnoreDepsFlag, false)
         addBoolItem(:installIncludeDepsFlag, false)
         addBoolItem(:installDevelopmentDepsFlag, false)
-        addStringItem(:installTrustPolicy, 'NoSecurity')
+        addBoolItem(:installformatExecutableFlag, false)
+        addIntItem(:installTrustPolicy, 0)
+    end
+
+    def installTrustPolicyStr
+        TrustPolicies[installTrustPolicy]
     end
 end
 
 
 class GeneralSettingsPage < Qt::Widget
+    include Singleton
 
     def initialize(parent=nil)
         super(parent)
@@ -117,9 +125,11 @@ class InstallOptionsPage < Qt::Widget
         @ignoreDepsCheckBox = Qt::CheckBox.new(i18n('Do not install any required dependent gems'))
         @includeDepsCheckBox = Qt::CheckBox.new(i18n('Unconditionally install the required dependent gems'))
         @developmentDepsCheckBox = Qt::CheckBox.new(i18n('Install any additional development dependencies'))
+        @formatExecutableCheckBox = Qt::CheckBox.new(i18n('Make installed executable names match ruby.'))
+        formatExeLabel = Qt::Label.new(i18n('     If ruby is ruby18, foo_exec will be foo_exec18'))
+#         formatExeLabel.wordWrap = true
         @trustPolicyComboBox = Qt::ComboBox.new
-        @trustPolicyComboBox.addItems(%w{ NoSecurity LowSecurity MediumSecurity HighSecurity })
-
+        @trustPolicyComboBox.addItems(TrustPolicies)
         # objectNames
         #  'kcfg_' + class Settings's instance name.
         @rdocCheckBox.objectName = 'kcfg_installRdocFlag'
@@ -130,6 +140,7 @@ class InstallOptionsPage < Qt::Widget
         @ignoreDepsCheckBox.objectName = 'kcfg_installIgnoreDepsFlag'
         @includeDepsCheckBox.objectName = 'kcfg_installIncludeDepsFlag'
         @developmentDepsCheckBox.objectName = 'kcfg_installDevelopmentDepsFlag'
+        @formatExecutableCheckBox.objectName = 'kcfg_installformatExecutableFlag'
         @trustPolicyComboBox.objectName = 'kcfg_installTrustPolicy'
 
         # layout
@@ -142,7 +153,10 @@ class InstallOptionsPage < Qt::Widget
             l.addWidget(@ignoreDepsCheckBox)
             l.addWidget(@includeDepsCheckBox)
             l.addWidget(@developmentDepsCheckBox)
+            l.addWidget(@formatExecutableCheckBox)
+            l.addWidget(formatExeLabel)
             l.addWidgets(i18n('Trust Policy :'), @trustPolicyComboBox, nil)
+            l.addStretch
         end
         setLayout(lo)
     end
@@ -152,7 +166,7 @@ class SettingsDlg < KDE::ConfigDialog
     def initialize(parent)
         super(parent, "Settings", Settings.instance)
 
-        addPage(GeneralSettingsPage.new, i18n("General"), 'preferences-system')
+        addPage(GeneralSettingsPage.instance, i18n("General"), 'preferences-system')
         addPage(InstallOptionsPage.instance, i18n("Install Options"), 'applications-other')
     end
 end

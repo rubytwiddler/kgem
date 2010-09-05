@@ -29,6 +29,7 @@ class DownloadedTable < Qt::TableWidget
         setHorizontalHeaderLabels(['file name', 'directory', 'installed'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
+        self.selectionMode = Qt::AbstractItemView::SingleSelection
         self.alternatingRowColors = true
         self.sortingEnabled = true
         sortByColumn(0, Qt::AscendingOrder)

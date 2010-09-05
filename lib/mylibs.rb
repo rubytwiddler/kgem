@@ -126,6 +126,10 @@ class SettingsBase < KDE::ConfigSkeleton
         defineItem(sym, 'toString', ItemString, default)
     end
 
+    def addIntItem(sym, default="")
+        defineItem(sym, 'value', ItemInt, default)
+    end
+
     def addUrlItem(sym, default=KDE::Url.new)
         if default.kind_of? String then
             default = KDE::Url.new(default)

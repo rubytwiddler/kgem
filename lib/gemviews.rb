@@ -1,133 +1,12 @@
 require 'cgi'
+require 'benchmark'
 
 #--------------------------------------------------------------------------------
 #
 #
-class GenerateRdocDlg < Qt::Dialog
-    def initialize(parent=nil)
-        super(parent)
-        self.windowTitle = i18n('Generate RDoc/ri')
-
-        @msgLabel = Qt::Label.new(i18n('Generate RDoc/ri'))
-        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
-        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
-        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
-        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
-        @allCheckBox = Qt::CheckBox.new(i18n('Generate RDoc/RI documentation for all'))
-        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
-        @rdocCheckBox.checked = true
-        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
-        @riCheckBox.checked = true
-        @overwriteCheckBox = Qt::CheckBox.new(i18n('Overwrite installed documents'))
-
-        # layout
-        lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@allCheckBox)
-            l.addWidget(@rdocCheckBox)
-            l.addWidget(@riCheckBox)
-            l.addWidget(@overwriteCheckBox)
-            l.addWidgets(nil, @okBtn, @cancelBtn)
-        end
-        setLayout(lo)
-    end
-
-    def all?
-        @allCheckBox.checked
-    end
-    def makeRdocArgs(gem)
-        args = ['rdoc']
-        return nil unless @rdocCheckBox.checked or @riCheckBox.checked
-
-        args.push(gem.package)
-        if @allCheckBox.checked
-            args.push('--all')
-        end
-        if @rdocCheckBox.checked
-            args.push('--rdoc')
-        else
-            args.push('--no-rdoc')
-        end
-        if @riCheckBox.checked
-            args.push('--ri')
-        else
-            args.push('--no-ri')
-        end
-        if @overwriteCheckBox.checked
-            args.push('--overwrite')
-        else
-            args.push('--no-overwrite')
-        end
-        args
-    end
-end
-
-#--------------------------------------------------------------------------------
-#
-#
-class SelectInstallVerDlg < Qt::Dialog
-    def initialize(parent=nil)
-        super(parent)
-        self.windowTitle = i18n('Installing Ruby Gem')
-
-        @msgLabel = Qt::Label.new
-        @msgLabel.wordWrap = true
-        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
-        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
-        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
-        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
-        @checkOtherVersion = KDE::PushButton.new(i18n('Check Other Version Availability'))
-        connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
-        @versionComboBox = Qt::ComboBox.new
-        @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
-        @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
-
-        # layout
-        lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@msgLabel)
-            l.addWidgets(@versionComboBox, @checkOtherVersion, nil)
-            l.addWidget(@forceCheckBox)
-            l.addWidget(InstallOptionsPage.instance)
-            l.addWidgets(nil, @okBtn, @cancelBtn)
-        end
-        setLayout(lo)
-    end
-
-    slots :checkOtherVersion
-    def checkOtherVersion
-        @versionComboBox.clear
-        res = %x{ gem list #{@gem.name} -a -r }
-        res = res[/#{Regexp.escape(@gem.name)}\s+\([\w\d.,\s]+\)/]
-        return res unless res
-
-        vers = res[/\(.*\)/][1..-2].split(/[\s,]+/)
-        vers.each do |v|
-            @versionComboBox.addItem(v.strip)
-        end
-        @versionComboBox.currentIndex = 0
-    end
-
-    def selectVersion(gem)
-        @gem = gem
-        @versionComboBox.clear
-        @versionComboBox.addItem(gem.version)
-        @msgLabel.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
-        exec == Qt::Dialog::Accepted
-    end
-
-    def makeInstallArgs
-        args = [ 'install' ]
-        args.push( @gem.package )
-        args.push( '-r' )
-        if @versionComboBox.currentIndex != 0 then
-            args.push( '-v' )
-            args.push( @versionComboBox.currentText )
-        end
-        if @forceCheckBox.checked then
-            args.push( '--force' )
-        else
-            args.push( '--no-force' )
-        end
-
+module InstallOption
+    def makeArgs
+        args = []
         options = Settings.instance
         if options.installRdocFlag then
             args.push( '--rdoc' )
@@ -163,20 +42,265 @@ class SelectInstallVerDlg < Qt::Dialog
         if options.installDevelopmentDepsFlag then
             args.push( '--development' )
         end
+        if options.installformatExecutableFlag then
+            args.push( '--format-executable' )
+        end
         args.push( '-P' )
-        args.push( options.installTrustPolicy)
+        args.push( options.installTrustPolicyStr )
 
         args
     end
+end
+
+class UpdateDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Update')
+
+        @msgLabel = Qt::Label.new(i18n('Updage Gem'))
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @versionComboBox = Qt::ComboBox.new
+        @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@msgLabel)
+            l.addWidgets(@versionComboBox)
+            l.addWidget(@forceCheckBox)
+            l.addWidget(InstallOptionsPage.instance)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    def selectOption(gem)
+        @gem = gem
+        @versionComboBox.clear
+        vers = gem.versions
+        return unless vers
+        @versionComboBox.addItems(vers)
+        @versionComboBox.currentIndex = 0
+        exec == Qt::Dialog::Accepted
+    end
+
+    include InstallOption
+    def makeUpdateArgs
+        args = [ 'update' ]
+        args.push( @gem.package )
+        args.push( '-r' )
+        if @versionComboBox.currentIndex != @gem.nowVersion then
+            args.push( '-v' )
+            args.push( @versionComboBox.currentText )
+        end
+        if @forceCheckBox.checked then
+            args.push( '--force' )
+        else
+            args.push( '--no-force' )
+        end
+        args += makeArgs
+    end
+end
+
+#--------------------------------------------------------------------------------
+#
+#
+class GenerateRdocDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Generate RDoc/ri')
+
+        @msgLabel = Qt::Label.new(i18n('Generate RDoc/ri'))
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @allCheckBox = Qt::CheckBox.new(i18n('Generate RDoc/RI documentation for all'))
+        @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
+        @rdocCheckBox.checked = true
+        @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
+        @riCheckBox.checked = true
+        @overwriteCheckBox = Qt::CheckBox.new(i18n('Overwrite installed documents'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@allCheckBox)
+            l.addWidget(@rdocCheckBox)
+            l.addWidget(@riCheckBox)
+            l.addWidget(@overwriteCheckBox)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    def all?
+        @allCheckBox.checked
+    end
+
+    def makeRdocArgs(gem)
+        args = ['rdoc']
+        return nil unless @rdocCheckBox.checked or @riCheckBox.checked
+
+        args.push(gem.package)
+        if @allCheckBox.checked
+            args.push('--all')
+        end
+        if @rdocCheckBox.checked
+            args.push('--rdoc')
+        else
+            args.push('--no-rdoc')
+        end
+        if @riCheckBox.checked
+            args.push('--ri')
+        else
+            args.push('--no-ri')
+        end
+        if @overwriteCheckBox.checked
+            args.push('--overwrite')
+        else
+            args.push('--no-overwrite')
+        end
+        args
+    end
+end
+
+#--------------------------------------------------------------------------------
+#
+#
+class SelectInstallVerDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Install Ruby Gem')
+
+        @msgLabel = Qt::Label.new
+        @msgLabel.wordWrap = true
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @checkOtherVersion = KDE::PushButton.new(i18n("Check Other Version's Availability"))
+        connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
+        @versionComboBox = Qt::ComboBox.new
+        @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
+        @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@msgLabel)
+            l.addWidgets('Version :', @versionComboBox, @checkOtherVersion, nil)
+            l.addWidget(@forceCheckBox)
+            l.addWidget(InstallOptionsPage.instance)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    slots :checkOtherVersion
+    def checkOtherVersion
+        @versionComboBox.clear
+        vers = @gem.versions
+        return unless vers
+        @versionComboBox.addItems(vers)
+        @versionComboBox.currentIndex = 0
+    end
+
+    def selectVersion(gem)
+        @gem = gem
+        @versionComboBox.clear
+        @versionComboBox.addItem(gem.version)
+        @msgLabel.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
+        exec == Qt::Dialog::Accepted
+    end
+
+    include InstallOption
+    def makeInstallArgs
+        args = [ 'install' ]
+        args.push( @gem.package )
+        args.push( '-r' )
+        if @versionComboBox.currentIndex != 0 then
+            args.push( '-v' )
+            args.push( @versionComboBox.currentText )
+        end
+        if @forceCheckBox.checked then
+            args.push( '--force' )
+        else
+            args.push( '--no-force' )
+        end
+        args += makeArgs
+    end
+
 end
 
 
 #--------------------------------------------------------------------------------
 #
 #
+class SelectDownloadVerDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        self.windowTitle = i18n('Download Ruby Gem')
+
+        @msgLabel = Qt::Label.new
+        @msgLabel.wordWrap = true
+        @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
+        @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
+        connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
+        connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
+        @checkOtherVersion = KDE::PushButton.new(i18n("Check Other Version's Availability"))
+        connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
+        @versionComboBox = Qt::ComboBox.new
+        @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@msgLabel)
+            l.addWidgets('Version :', @versionComboBox, @checkOtherVersion, nil)
+            l.addWidget(@skipVersionCheck)
+            l.addWidgets(nil, @okBtn, @cancelBtn)
+        end
+        setLayout(lo)
+    end
+
+    slots :checkOtherVersion
+    def checkOtherVersion
+        @versionComboBox.clear
+        vers = @gem.versions
+        return unless vers
+        @versionComboBox.addItems(vers)
+        @versionComboBox.currentIndex = 0
+    end
+
+    def selectVersion(gem)
+        @gem = gem
+        @versionComboBox.clear
+        @versionComboBox.addItem(gem.version)
+        @msgLabel.text = 'Download gem ' + gem.name + ' (' + gem.version.strip + ')'
+        exec == Qt::Dialog::Accepted
+    end
+
+    def makeDownloadArgs
+        args = [ 'fetch' ]
+        args.push( @gem.package )
+        args.push( '-r' )
+        if @versionComboBox.currentIndex != 0 then
+            args.push( '-v' )
+            args.push( @versionComboBox.currentText )
+        end
+        args
+    end
+end
+
+
+#--------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------
+#
+#
 class DockGemViewer
     attr_reader :previewWin
-    def initialize(detailView, filesView, terminalWin, previewWin)
+    def initialize(parent, detailView, filesView, terminalWin, previewWin)
+        @parent = parent
         @detailView = detailView
         @filesView = filesView
         @terminalWin = terminalWin
@@ -230,6 +354,42 @@ class DockGemViewer
         @installWatcher.each do |w| w.notifyInstall end
     end
 
+    #--------------------------------------------------------------
+    #
+    #
+    def upgradable(gem)
+        time =  Benchmark.realtime { gem.versions }
+        puts "Time : " + time.to_s
+        gem.versions.first != gem.nowVersion
+    end
+
+    def updateGem(gem)
+        unless upgradable(gem) then
+            Qt.debug_level = Qt::DebugLevel::High
+            res = KDE::MessageBox::questionYesNo(@parent, Qt::Object.i18n('Already Installed Latest Gem. install older version anyway ?'), Qt::Object.i18n('Already Installed latest Gem.'))
+            Qt.debug_level = Qt::DebugLevel::Off
+            return unless res == KDE::Dialog::Yes
+        end
+
+        @updateDlg ||= UpdateDlg.new
+        return unless @updateDlg.selectOption(gem)
+
+        args = @updateDlg.makeUpdateArgs
+        if gem.installedLocal? then
+            args.push( '--user-install' )
+            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        else
+            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        end
+        @terminalWin.processStart(cmd, args) do |ret|
+            notifyInstall
+            notifyDownload
+            if ret == 0 then
+                passiveMessage("Installed #{gem.package}")
+            end
+        end
+    end
+
 
     def install(gem)
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
@@ -270,6 +430,10 @@ class DockGemViewer
     end
 
     def download(gem)
+        @selectDownloadVerDlg ||= SelectDownloadVerDlg.new
+        return unless @selectDownloadVerDlg.selectVersion(gem)
+
+        args = @selectDownloadVerDlg.makeInstallArgs
         if Settings.autoFetchFlag then
             dir = Settings.autoFetchDir.pathOrUrl
         else
@@ -279,7 +443,7 @@ class DockGemViewer
         end
         Dir.chdir(dir)
         cmd = 'gem'
-        args = [ 'fetch', gem.package ]
+        args = @selectDownloadVerDlg.makeDownloadArgs
         @terminalWin.processStart(cmd, args) do |ret|
             notifyDownload
             if ret == 0 then
@@ -483,6 +647,7 @@ class TerminalWin < Qt::DockWidget
     end
 
     def processSetup
+        @error = 0
         @process = Qt::Process.new(self)
         @process.setProcessChannelMode(Qt::Process::MergedChannels)
         connect(@process, SIGNAL('finished(int,QProcess::ExitStatus)'),
@@ -512,17 +677,23 @@ class TerminalWin < Qt::DockWidget
     def processfinished(exitCode, exitStatus)
         write( @process.readAll.data )
         if @finishProc
-            @finishProc.call(exitCode)
+            @finishProc.call(exitCode | @error)
+        end
+    end
+
+    def checkErrorInMsg(msg)
+        if msg =~ /Exiting [\w\s]+ exit_code \d/i
+            @error = 1
         end
     end
 
     def processReadyRead
         lines = @process.readAll.data
-        lines.gsub!(/^kdesu .*?\n/, '')
         lines.gsub!(/~?ScimInputContextPlugin.*?\n/, '')
         unless lines.empty?
             print lines
             write( lines )
+            checkErrorInMsg(lines)
         end
     end
 

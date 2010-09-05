@@ -1,7 +1,6 @@
 *be able to specify install/download version.
 *Rakefile : gem package.
 *respect .gemrc
-*update
 *generate rdoc/ri
 
 *allow only one item selected.

@@ -28,6 +28,7 @@ class GemListTable < Qt::TableWidget
         setHorizontalHeaderLabels(['package', 'version', 'summary'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
+        self.selectionMode = Qt::AbstractItemView::SingleSelection
         self.alternatingRowColors = true
         self.sortingEnabled = true
         sortByColumn(PACKAGE_NAME, Qt::AscendingOrder )
@@ -178,7 +179,10 @@ class InstalledGemWin < Qt::Widget
 
     slots :updateGem
     def updateGem
+        gem = @installedGemsTable.currentGem
+        return unless gem
 
+        @gemViewer.updateGem(gem)
     end
 
     slots :generateRdoc
@@ -227,7 +231,7 @@ class InstalledGemWin < Qt::Widget
 
         # make rdoc path
         pkg = gem.package
-        ver = gem.latestVersion
+        ver = gem.nowVersion
         url = findGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
         cmd= Mime::services('.html').first.exec
         cmd.gsub!(/%\w+/, url)
@@ -255,7 +259,7 @@ class InstalledGemWin < Qt::Widget
         return unless gem
 
         pkg = gem.package
-        ver = gem.latestVersion
+        ver = gem.nowVersion
         url = findGemPath('/gems/' + pkg + '-' + ver)
         cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
         cmd += " " + url
