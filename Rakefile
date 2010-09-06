@@ -11,7 +11,7 @@ spec = Gem::Specification.new do |s|
     s.email = "ruby.twiddler at gmail.com"
     s.homepage = "http://github.com/rubytwiddler/kgem/wiki"
     s.platform = "linux"
-    s.summary = "Gem tool on KDE GUI."
+    s.summary = "KDE GUI for ruby gem."
     s.files = FileList["{bin,lib}/*"].to_a
     s.files += %w{ README MIT-LICENSE Rakefile pkg_resources/gemcmdwin-super.rb.pam }
     s.executables = [ 'kgem.rb' ]
@@ -20,8 +20,11 @@ spec = Gem::Specification.new do |s|
     s.require_path = "lib"
     s.requirements = %w{ korundum4 }
     s.description = <<-EOF
-Gem tool on KDE GUI.
-    EOF
+Kgem is KDE GUI for ruby gem tool.
+You can install/uninstall/update/download gems just clicking around,
+search to find gem, browsing source files in gems without installing these gems.
+You don't need to remember gem's command and options any more.
+EOF
     s.has_rdoc = false
     s.extra_rdoc_files = ["README"]
 end
@@ -68,7 +71,7 @@ end
 
 desc "install as gem package"
 task :installgem => :gem do
-    system("gem install -r pkg/" + package.gem_file )
+    system("gem install -l pkg/" + package.gem_file )
 end
 
 

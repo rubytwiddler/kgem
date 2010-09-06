@@ -1,0 +1,36 @@
+Kgem is KDE GUI for ruby gem tool.
+You can install/uninstall/update/download gems just clicking around,
+search to find gem, browsing source files in gems without installing these gems.
+You don't need to remember gem's command and options any more.
+
+
+  Prerequisite
+================
+kgem requires kdebindings4. (http://download.kde.org/download.php?url=stable/4.5.0/src/kdebindings-4.5.0.tar.bz2
+)
+Check your linux distro package to install. Major linux distros have kdebindings package.
+Installing from distro package is the most easiest and safest way.
+kgem also requires rubygems.
+
+  Install
+===========
+just type gem command.
+  gem install kgem
+
+or download latest gems from github and rake to install gem.
+  git clone git@github.com:rubytwiddler/kgem.git
+  cd kgem
+  rake gem
+  sudo rake installgem
+
+  More informatin on Web
+==========================
+http://github.com/rubytwiddler/kgem/wiki
+
+
+  Bug report. request.
+==========================
+http://github.com/rubytwiddler/kgem/issues
+
+
+License : MIT-LICENSE. read MIT-LICENSE file.

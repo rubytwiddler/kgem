@@ -215,13 +215,18 @@ class SelectInstallVerDlg < Qt::Dialog
     end
 
     include InstallOption
-    def makeInstallArgs
+    def makeInstallArgs(localFlag)
         args = [ 'install' ]
-        args.push( @gem.package )
-        args.push( '-r' )
         if @versionComboBox.currentIndex != 0 then
+            args.push( @gem.package )
+            args.push( '-r' )
             args.push( '-v' )
             args.push( @versionComboBox.currentText )
+        elsif localFlag then
+            args.push( @gem.filePath )
+        else
+            args.push( @gem.package )
+            args.push( '-r' )
         end
         if @forceCheckBox.checked then
             args.push( '--force' )
@@ -391,11 +396,11 @@ class DockGemViewer
     end
 
 
-    def install(gem)
+    def install(gem, localFlag)
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
         return unless @selectInstallVerDlg.selectVersion(gem)
 
-        args = @selectInstallVerDlg.makeInstallArgs
+        args = @selectInstallVerDlg.makeInstallArgs(localFlag)
         if Settings.installInSystemDirFlag then
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         else

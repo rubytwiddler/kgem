@@ -1,5 +1,9 @@
 *Rakefile : gem package.
 *respect .gemrc
+*BUG : Abort with Error when installing downloaded gem.
+        ERROR: While executing gem ... (ArgumentError)
+            Malformed version number string linux
+        Exiting RubyGems with exit_code 1
 
 *version check progress dialog
 *check

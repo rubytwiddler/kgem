@@ -36,6 +36,11 @@ class GemItem
         @downloads = 0
     end
 
+    attr_reader :filePath
+    def addLocalPath(filePath)
+        @filePath = filePath
+    end
+
     def nowVersion
         version.split(/,/, 2).first
     end
@@ -54,7 +59,8 @@ class GemItem
     end
 
     def installedLocal?
-        %x{ gem query -l -n '^#{@package}$' } =~ /#{@package}/
+        res = %x{ gem query -l -d -n '^#{@package}$' }
+        res =~ /#{@package}/ and res =~ %r? /home/?
     end
 
     def self.parseHashGem(hGem)

@@ -218,7 +218,8 @@ class DownloadedWin < Qt::Widget
         filePath = fetchedGem.filePath
         spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
         gem = GemItem::parseGemSpec(spec)
-        @gemViewer.install(gem)
+        gem.addLocalPath(filePath)
+        @gemViewer.install(gem, true)   # localFlag = true
     end
 
     slots :delete

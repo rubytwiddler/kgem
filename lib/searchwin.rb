@@ -145,6 +145,6 @@ class SearchWin < Qt::Widget
         gem = @gemList.currentGem
         return gem unless gem
 
-        @gemViewer.install(gem)
+        @gemViewer.install(gem, false)   # localFlag = false
     end
 end

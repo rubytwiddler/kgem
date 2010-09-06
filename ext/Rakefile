@@ -37,7 +37,28 @@ EOF
 end
 
 desc "Install consolehelper files."
-task :default do
+task :install_consolehelper do
     install_console_helper('gemcmdwin-super.rb', 'gemcmdwin.rb')
 end
 
+desc "Install Application Menu"
+task :install_menu do
+    menuDir = %x{ kde4-config --install xdgdata-apps }.strip
+    menuEntryFile = File.join(menuDir, 'kgem.desktop')
+    open(menuEntryFile,'w') do |f|
+        f.write(<<-EOF
+[Desktop Entry]
+Name=Kgem
+Comment=Ruby Gem Tool with KDE GUI
+Exec=kgem %f
+Icon=kgem
+Terminal=false
+Type=Application
+Categories=Tool
+MimeType=application/x-gem;
+    EOF
+               )
+    end
+end
+
+task :default => [ :install_consolehelper, :install_menu  ]
