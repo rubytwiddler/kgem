@@ -70,6 +70,9 @@ class UpdateDlg < Qt::Dialog
         @allCheckBox = Qt::CheckBox.new(i18n('Update all'))
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
 
+        @optionsPage = InstallOptionsPage.new
+        @settingsManager = KDE::ConfigDialogManager.new(@optionsPage, Settings.instance)
+
         # layout
         @versionWidget = HBoxLayoutWidget.new do |l|
             l.addWidgets('Version :', @versionComboBox, nil)
@@ -80,7 +83,7 @@ class UpdateDlg < Qt::Dialog
             l.addWidget(@versionWidget)
             l.addWidget(@allCheckBox)
             l.addWidget(@forceCheckBox)
-            l.addWidget(InstallOptionsPage.instance)
+            l.addWidget(@optionsPage)
             l.addWidgets(nil, @okBtn, @cancelBtn)
         end
         setLayout(@mainLayout)
@@ -98,6 +101,7 @@ class UpdateDlg < Qt::Dialog
         return unless vers
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
+        @settingsManager.updateWidgets
         exec == Qt::Dialog::Accepted
     end
 
@@ -107,12 +111,16 @@ class UpdateDlg < Qt::Dialog
         @versionWidget.visible = false
         self.windowTitle = @msgLabel.text = i18n('Update All Gems')
 
+        @settingsManager.updateWidgets
         exec == Qt::Dialog::Accepted
     end
 
 
     include InstallOption
+
     def makeUpdateArgs
+        @settingsManager.updateSettings
+
         args = [ 'update' ]
         unless @allCheckBox.checked then
             args.push( @gem.package )
@@ -215,12 +223,15 @@ class SelectInstallVerDlg < Qt::Dialog
         @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
 
+        @optionsPage = InstallOptionsPage.new
+        @settingsManager = KDE::ConfigDialogManager.new(@optionsPage, Settings.instance)
+
         # layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@msgLabel)
             l.addWidgets('Version :', @versionComboBox, @checkOtherVersion, nil)
             l.addWidget(@forceCheckBox)
-            l.addWidget(InstallOptionsPage.instance)
+            l.addWidget(@optionsPage)
             l.addWidgets(nil, @okBtn, @cancelBtn)
         end
         setLayout(lo)
@@ -240,11 +251,14 @@ class SelectInstallVerDlg < Qt::Dialog
         @versionComboBox.clear
         @versionComboBox.addItem(gem.version)
         @msgLabel.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
+        @settingsManager.updateWidgets
         exec == Qt::Dialog::Accepted
     end
 
     include InstallOption
     def makeInstallArgs(localFlag)
+        @settingsManager.updateSettings
+
         args = [ 'install' ]
         if @versionComboBox.currentIndex != 0 then
             args.push( @gem.package )
@@ -414,6 +428,17 @@ class DockGemViewer < Qt::Object
     def checkStale
     end
 
+    slots :updateSystem
+    def updateSystem
+        args = %w{ update --system }
+        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("Updated All Gems.")
+            end
+        end
+    end
+
     def upgradable(gem)
         time =  Benchmark.realtime { gem.versions }
         puts "Time : " + time.to_s
@@ -428,12 +453,20 @@ class DockGemViewer < Qt::Object
         args = @updateDlg.makeUpdateArgs
         cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("Updated All Gems (in system).")
+                args << '--user-install'
+                cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+                @terminalWin.processStart(cmd, args) do |ret|
+                    if ret == 0 then
+                        passiveMessage("Updated All Gems (in user).")
+                    end
+                end
+            end
             notifyInstall
             notifyDownload
-            if ret == 0 then
-                passiveMessage("Updated All Gems.")
-            end
         end
+
     end
 
     def updateGem(gem)

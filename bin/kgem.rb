@@ -63,30 +63,47 @@ class MainWindow < KDE::MainWindow
 
     def createMenu
         # file menu
-        quitAction = @actions.addNew('Quit', self, { :icon => 'exit', :shortCut => 'Ctrl+Q', :triggered => :close })
+        quitAction = @actions.addNew('Quit', self, \
+            { :icon => 'exit', :shortCut => 'Ctrl+Q', :triggered => :close })
         fileMenu = KDE::Menu.new(i18n('&File'), self)
         fileMenu.addAction(quitAction)
 
         # tool menu
-        checkStaleAction = @actions.addNew('Check Stale', self, { :icon => 'checkbox', :shortCut => 'F7', :triggered => [@gemViewer, :checkStale] })
-        checkAlianAction = @actions.addNew('Check Alian', self, { :icon => 'checkbox', :shortCut => 'F8', :triggered => [@gemViewer, :checkAlian] })
-        cleanUpAction = @actions.addNew('Clean Up', self, { :icon => 'edit-clear', :shortCut => 'F9', :triggered => [@gemViewer, :cleanUp] })
-        updateAllAction = @actions.addNew('Update All', self, { :icon => 'checkbox', :shortCut => 'F10', :triggered => [@gemViewer, :updateAll] })
-        prestineAllAction = @actions.addNew('Prestine All', self, { :icon => 'checkbox', :shortCut => 'F11', :triggered => [@gemViewer, :prestineAll] })
+        updateSystemAction = @actions.addNew('Update Gem System', self, \
+            { :icon => 'checkbox', :shortCut => 'F4', \
+              :triggered => [@gemViewer, :updateSystem ] })
+        checkStaleAction = @actions.addNew('Check Stale', self, \
+            { :icon => 'checkbox', :shortCut => 'F7', \
+              :triggered => [@gemViewer, :checkStale] })
+        checkAlianAction = @actions.addNew('Check Alian', self, \
+            { :icon => 'checkbox', :shortCut => 'F8', \
+              :triggered => [@gemViewer, :checkAlian] })
+        cleanUpAction = @actions.addNew('Clean Up', self, \
+            { :icon => 'edit-clear', :shortCut => 'F9', \
+              :triggered => [@gemViewer, :cleanUp] })
+        updateAllAction = @actions.addNew('Update All', self, \
+            { :icon => 'checkbox', :shortCut => 'F10', \
+              :triggered => [@gemViewer, :updateAll] })
+        prestineAllAction = @actions.addNew('Prestine All', self, \
+            { :icon => 'checkbox', :shortCut => 'F11', \
+              :triggered => [@gemViewer, :prestineAll] })
 
         toolsMenu = KDE::Menu.new(i18n('&Tools'), self)
+        toolsMenu.addAction(updateSystemAction)
+        toolsMenu.addSeparator
         toolsMenu.addAction(checkStaleAction)
         toolsMenu.addAction(checkAlianAction)
+        toolsMenu.addSeparator
         toolsMenu.addAction(cleanUpAction)
         toolsMenu.addAction(updateAllAction)
         toolsMenu.addAction(prestineAllAction)
 
 
         # settings menu
-        configureShortCutAction = KDE::Action.new(KDE::Icon.new('configure-shortcuts'),
-                                                  i18n('Configure Shortcuts'), self)
-        configureAppAction = KDE::Action.new(KDE::Icon.new('configure'),
-                                              i18n('Configure Kgem'), self)
+        configureShortCutAction = @actions.addNew(i18n('Configure Shortcuts'), self, \
+            { :icon => 'configure-shortcuts', :shortCut => 'F3', :triggered => :configureShortCut })
+        configureAppAction = @actions.addNew(i18n('Configure Kgem'), self, \
+            { :icon => 'configure', :shortCut => 'F2', :triggered => :configureApp })
         detailWinAction = @detailWin.toggleViewAction
         fileListWinAction = @fileListWin.toggleViewAction
         termilanWinAction = @terminalWin.toggleViewAction
@@ -98,9 +115,6 @@ class MainWindow < KDE::MainWindow
         settingsMenu.addSeparator
         settingsMenu.addAction(configureShortCutAction)
         settingsMenu.addAction(configureAppAction)
-        # connect actions
-        connect(configureShortCutAction, SIGNAL(:triggered), self, SLOT(:configureShortCut))
-        connect(configureAppAction, SIGNAL(:triggered), self, SLOT(:configureApp))
 
 
         # Help menu

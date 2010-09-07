@@ -1,7 +1,6 @@
 #
 #   settings.
 #
-require 'singleton'
 require 'kio'
 #
 require "mylibs"
@@ -45,8 +44,6 @@ end
 
 
 class GeneralSettingsPage < Qt::Widget
-    include Singleton
-
     def initialize(parent=nil)
         super(parent)
         createWidget
@@ -107,8 +104,6 @@ end
 
 
 class InstallOptionsPage < Qt::Widget
-    include Singleton
-
     def initialize(parent=nil)
         super(parent)
         createWidget
@@ -166,7 +161,7 @@ class SettingsDlg < KDE::ConfigDialog
     def initialize(parent)
         super(parent, "Settings", Settings.instance)
 
-        addPage(GeneralSettingsPage.instance, i18n("General"), 'preferences-system')
-        addPage(InstallOptionsPage.instance, i18n("Install Options"), 'applications-other')
+        addPage(GeneralSettingsPage.new, i18n("General"), 'preferences-system')
+        addPage(InstallOptionsPage.new, i18n("Install Options"), 'applications-other')
     end
 end
