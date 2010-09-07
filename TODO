@@ -1,14 +1,11 @@
-*Rakefile : gem package.
+*BUG no install options page.
 *respect .gemrc
-*BUG : Abort with Error when installing downloaded gem.
-        ERROR: While executing gem ... (ArgumentError)
-            Malformed version number string linux
-        Exiting RubyGems with exit_code 1
 
-*version check progress dialog
 *check
+*update all
 *clean up
 *prestine
 *cert
 *settings - add github
 *bug text cr/lf
+*version check progress dialog

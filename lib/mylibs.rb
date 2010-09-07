@@ -105,9 +105,75 @@ class HBoxLayoutWidget < Qt::Widget
     end
 end
 
+
+#--------------------------------------------------------------------------
+#
+#
 def passiveMessage(text)
     %x{ kdialog --passivepopup #{text.shellescape} }
 end
+
+
+
+#--------------------------------------------------------------------------
+#
+#
+
+class Qt::Action
+    def setVData(data)
+        setData(Qt::Variant.new(data))
+    end
+
+    def vData
+        self.data.toString
+    end
+end
+
+module Mime
+    def self.services(url)
+        mimeType = KDE::MimeType.findByUrl(KDE::Url.new(url))
+        mime = mimeType.name
+        services = KDE::MimeTypeTrader.self.query(mime)
+    end
+end
+
+class KDE::ActionCollection
+    # @return : KDE::Action
+    # @parameter name :
+    # @parameter parent : parent Qt::Object
+    # @parameter options { :text=>name, :icon, :shortCut, :triggered }
+    def addNew(name, parent=self.parent, options = {})
+        text = options[:text] || name
+        icon = options[:icon]
+        if icon then
+            action = KDE::Action.new(KDE::Icon.new(icon), text, parent)
+        else
+            action = KDE::Action.new(text, parent)
+        end
+        shortCut = options[:shortCut]
+        if shortCut then
+            action.setShortcut(KDE::Shortcut.new(shortCut))
+        end
+        self.addAction(action.text, action)
+        slot = options[:triggered]
+        if slot then
+            if slot.kind_of? Array then
+                self.connect(action, SIGNAL(:triggered), slot[0], \
+                               SLOT(slot[1]))
+            else
+                self.connect(action, SIGNAL(:triggered), parent, \
+                               SLOT(slot))
+            end
+        end
+        action
+    end
+end
+
+
+
+
+
+
 
 #--------------------------------------------------------------------------
 #
@@ -205,10 +271,11 @@ end
 
 
 
+
 #--------------------------------------------------------------------------
 #
+#   stdlib
 #
-
 module Enumerable
     class Proxy
         instance_methods.each { |m| undef_method(m) unless m.match(/^__/) }
@@ -222,37 +289,6 @@ module Enumerable
 
     def every
         Proxy.new(self)
-    end
-end
-
-#
-# class Hash
-#     alias   old_blaket []
-#     def [](key)
-#         unless key.kind_of?(Regexp)
-#             return old_blaket(key)
-#         end
-#
-#         retk, retv = self.find { |k,v| k =~ key }
-#         retv
-#     end
-# end
-
-class Qt::Action
-    def setVData(data)
-        setData(Qt::Variant.new(data))
-    end
-
-    def vData
-        self.data.toString
-    end
-end
-
-module Mime
-    def self.services(url)
-        mimeType = KDE::MimeType.findByUrl(KDE::Url.new(url))
-        mime = mimeType.name
-        services = KDE::MimeTypeTrader.self.query(mime)
     end
 end
 

@@ -62,13 +62,24 @@ class MainWindow < KDE::MainWindow
 
 
     def createMenu
-        # create actions
-        quitAction = KDE::Action.new(KDE::Icon.new('exit'), '&Quit', self)
-        quitAction.setShortcut(KDE::Shortcut.new('Ctrl+Q'))
-        @actions.addAction(quitAction.text, quitAction)
+        # file menu
+        quitAction = @actions.addNew('Quit', self, { :icon => 'exit', :shortCut => 'Ctrl+Q', :triggered => :close })
+        fileMenu = KDE::Menu.new(i18n('&File'), self)
+        fileMenu.addAction(quitAction)
 
-        # connect actions
-        connect(quitAction, SIGNAL(:triggered), self, SLOT(:close))
+        # tool menu
+        checkStaleAction = @actions.addNew('Check Stale', self, { :icon => 'checkbox', :shortCut => 'F7', :triggered => [@gemViewer, :checkStale] })
+        checkAlianAction = @actions.addNew('Check Alian', self, { :icon => 'checkbox', :shortCut => 'F8', :triggered => [@gemViewer, :checkAlian] })
+        cleanUpAction = @actions.addNew('Clean Up', self, { :icon => 'edit-clear', :shortCut => 'F9', :triggered => [@gemViewer, :cleanUp] })
+        updateAllAction = @actions.addNew('Update All', self, { :icon => 'checkbox', :shortCut => 'F10', :triggered => [@gemViewer, :updateAll] })
+        prestineAllAction = @actions.addNew('Prestine All', self, { :icon => 'checkbox', :shortCut => 'F11', :triggered => [@gemViewer, :prestineAll] })
+
+        toolsMenu = KDE::Menu.new(i18n('&Tools'), self)
+        toolsMenu.addAction(checkStaleAction)
+        toolsMenu.addAction(checkAlianAction)
+        toolsMenu.addAction(cleanUpAction)
+        toolsMenu.addAction(updateAllAction)
+        toolsMenu.addAction(prestineAllAction)
 
 
         # settings menu
@@ -94,12 +105,12 @@ class MainWindow < KDE::MainWindow
 
         # Help menu
         gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
-        gemHelpAction .setShortcut(KDE::Shortcut.new('F7'))
+        gemHelpAction .setShortcut(KDE::Shortcut.new('F1'))
         @actions.addAction(gemHelpAction.text, gemHelpAction)
         connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
 
         aboutDlg = KDE::AboutApplicationDialog.new($about)
-        openAboutAction = KDE::Action.new(KDE::Icon.new('kgem'),
+        openAboutAction = KDE::Action.new(KDE::Icon.new('help-about'),
                                           i18n('About kgem'), self)
         connect(openAboutAction, SIGNAL(:triggered), aboutDlg, SLOT(:exec))
 
@@ -126,13 +137,10 @@ class MainWindow < KDE::MainWindow
         helpMenu.addAction(openAboutAction)
 
 
-        # file menu
-        fileMenu = KDE::Menu.new(i18n('&File'), self)
-        fileMenu.addAction(quitAction)
-
         # insert menus in MenuBar
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
+        menu.addMenu( toolsMenu )
         menu.addMenu( settingsMenu )
         menu.addMenu( helpMenu )
         setMenuBar(menu)

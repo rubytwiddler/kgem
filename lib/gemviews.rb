@@ -52,33 +52,48 @@ module InstallOption
     end
 end
 
+
+#--------------------------------------------------------------------------------
+#
+#
 class UpdateDlg < Qt::Dialog
     def initialize(parent=nil)
         super(parent)
-        self.windowTitle = i18n('Update')
+        self.windowTitle = i18n('Update Gem')
 
-        @msgLabel = Qt::Label.new(i18n('Updage Gem'))
+        @msgLabel = Qt::Label.new(i18n('Update Gem'))
         @okBtn = KDE::PushButton.new(KDE::Icon.new('dialog-ok'), 'OK')
         @cancelBtn = KDE::PushButton.new(KDE::Icon.new('dialog-cancel'), 'Cancel')
         connect(@okBtn, SIGNAL(:clicked), self, SLOT(:accept))
         connect(@cancelBtn, SIGNAL(:clicked), self, SLOT(:reject))
         @versionComboBox = Qt::ComboBox.new
+        @allCheckBox = Qt::CheckBox.new(i18n('Update all'))
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
 
         # layout
-        lo = Qt::VBoxLayout.new do |l|
+        @versionWidget = HBoxLayoutWidget.new do |l|
+            l.addWidgets('Version :', @versionComboBox, nil)
+        end
+        @versionEnabled = true
+        @mainLayout = Qt::VBoxLayout.new do |l|
             l.addWidget(@msgLabel)
-            l.addWidgets(@versionComboBox)
+            l.addWidget(@versionWidget)
+            l.addWidget(@allCheckBox)
             l.addWidget(@forceCheckBox)
             l.addWidget(InstallOptionsPage.instance)
             l.addWidgets(nil, @okBtn, @cancelBtn)
         end
-        setLayout(lo)
+        setLayout(@mainLayout)
     end
 
+
     def selectOption(gem)
+        @allCheckBox.checked = false
+        @allCheckBox.enabled = true
+        @versionWidget.visible = true
         @gem = gem
         @versionComboBox.clear
+        self.windowTitle = @msgLabel.text = i18n('Update Gem %s') % gem.name
         vers = gem.versions
         return unless vers
         @versionComboBox.addItems(vers)
@@ -86,14 +101,28 @@ class UpdateDlg < Qt::Dialog
         exec == Qt::Dialog::Accepted
     end
 
+    def confirmUpdateAll
+        @allCheckBox.checked = true
+        @allCheckBox.enabled = false
+        @versionWidget.visible = false
+        self.windowTitle = @msgLabel.text = i18n('Update All Gems')
+
+        exec == Qt::Dialog::Accepted
+    end
+
+
     include InstallOption
     def makeUpdateArgs
         args = [ 'update' ]
-        args.push( @gem.package )
-        args.push( '-r' )
-        if @versionComboBox.currentIndex != @gem.nowVersion then
-            args.push( '-v' )
-            args.push( @versionComboBox.currentText )
+        unless @allCheckBox.checked then
+            args.push( @gem.package )
+            args.push( '-r' )
+            if @versionComboBox.currentIndex != @gem.nowVersion then
+                args.shift
+                args.unshift( 'install' )
+                args.push( '-v' )
+                args.push( @versionComboBox.currentText )
+            end
         end
         if @forceCheckBox.checked then
             args.push( '--force' )
@@ -302,9 +331,10 @@ end
 #--------------------------------------------------------------------------------
 #
 #
-class DockGemViewer
+class DockGemViewer < Qt::Object
     attr_reader :previewWin
     def initialize(parent, detailView, filesView, terminalWin, previewWin)
+        super(nil)
         @parent = parent
         @detailView = detailView
         @filesView = filesView
@@ -362,18 +392,54 @@ class DockGemViewer
     #--------------------------------------------------------------
     #
     #
+    slots :cleanUp
+    def cleanUp
+        res = KDE::MessageBox::questionYesNo(
+            @parent, Qt::Object.i18n('Clean up old versions of installed gems in the local repository. Clean Up ?'), Qt::Object.i18n('Clean Up.'))
+        return unless res == KDE::MessageBox::Yes
+
+#         %x{ }
+    end
+
+
+    slots :prestineAll
+    def prestineAll
+    end
+
+    slots :checkAlian
+    def checkAlian
+    end
+
+    slots :checkStale
+    def checkStale
+    end
+
     def upgradable(gem)
         time =  Benchmark.realtime { gem.versions }
         puts "Time : " + time.to_s
         gem.versions.first != gem.nowVersion
     end
 
+    slots :updateAll
+    def updateAll
+        @updateDlg ||= UpdateDlg.new
+        return unless @updateDlg.confirmUpdateAll
+
+        args = @updateDlg.makeUpdateArgs
+        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        @terminalWin.processStart(cmd, args) do |ret|
+            notifyInstall
+            notifyDownload
+            if ret == 0 then
+                passiveMessage("Updated All Gems.")
+            end
+        end
+    end
+
     def updateGem(gem)
         unless upgradable(gem) then
-            Qt.debug_level = Qt::DebugLevel::High
-            res = KDE::MessageBox::questionYesNo(@parent, Qt::Object.i18n('Already Installed Latest Gem. install older version anyway ?'), Qt::Object.i18n('Already Installed latest Gem.'))
-            Qt.debug_level = Qt::DebugLevel::Off
-            return unless res == KDE::Dialog::Yes
+            res = KDE::MessageBox::questionYesNo(@parent, Qt::Object.i18n('Already Installed Latest Gem. install older version ?'), Qt::Object.i18n('Already Installed latest Gem.'))
+            return unless res == KDE::MessageBox::Yes
         end
 
         @updateDlg ||= UpdateDlg.new
@@ -394,7 +460,6 @@ class DockGemViewer
             end
         end
     end
-
 
     def install(gem, localFlag)
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
