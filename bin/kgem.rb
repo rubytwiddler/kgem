@@ -84,9 +84,9 @@ class MainWindow < KDE::MainWindow
         updateAllAction = @actions.addNew('Update All', self, \
             { :icon => 'checkbox', :shortCut => 'F10', \
               :triggered => [@gemViewer, :updateAll] })
-        prestineAllAction = @actions.addNew('Prestine All', self, \
+        pristineAllAction = @actions.addNew('Pristine All', self, \
             { :icon => 'checkbox', :shortCut => 'F11', \
-              :triggered => [@gemViewer, :prestineAll] })
+              :triggered => [@gemViewer, :pristineAll] })
 
         toolsMenu = KDE::Menu.new(i18n('&Tools'), self)
         toolsMenu.addAction(updateSystemAction)
@@ -96,7 +96,7 @@ class MainWindow < KDE::MainWindow
         toolsMenu.addSeparator
         toolsMenu.addAction(cleanUpAction)
         toolsMenu.addAction(updateAllAction)
-        toolsMenu.addAction(prestineAllAction)
+        toolsMenu.addAction(pristineAllAction)
 
 
         # settings menu

@@ -412,12 +412,36 @@ class DockGemViewer < Qt::Object
             @parent, Qt::Object.i18n('Clean up old versions of installed gems in the local repository. Clean Up ?'), Qt::Object.i18n('Clean Up.'))
         return unless res == KDE::MessageBox::Yes
 
-#         %x{ }
+        args = %w{ cleanup }
+        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("Cleaned Up old versions of gems.")
+            end
+        end
     end
 
 
-    slots :prestineAll
-    def prestineAll
+    slots :pristineAll
+    def pristineAll
+        res = KDE::MessageBox::questionYesNo(
+            @parent, Qt::Object.i18n(<<-EOF
+Restores installed gems to pristine condition from files located in the gem cache.
+
+The pristine command compares the installed gems with the contents of the cached gem and restores any files that don't match the cached gem's copy. If you have made modifications to your installed gems, the pristine command will revert them. After all the gem's files have been checked all bin.
+
+Pristine All ?
+            EOF
+            ), Qt::Object.i18n('Pristine All.'))
+        return unless res == KDE::MessageBox::Yes
+
+        args = %w{ pristine --all }
+        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("Pristined All.")
+            end
+        end
     end
 
     slots :checkAlian
@@ -773,6 +797,7 @@ class TerminalWin < Qt::DockWidget
             return
         end
         puts "execute : " + cmd.inspect + " " + args.join(' ').inspect
+        @canceled = 1
         @process.start(cmd, args)
         @finishProc = block
     end
@@ -780,11 +805,12 @@ class TerminalWin < Qt::DockWidget
     def processfinished(exitCode, exitStatus)
         write( @process.readAll.data )
         if @finishProc
-            @finishProc.call(exitCode | @error)
+            @finishProc.call(exitCode | @error | @canceled )
         end
     end
 
     def checkErrorInMsg(msg)
+        @canceled = 0
         if msg =~ /Exiting [\w\s]+ exit_code \d/i
             @error = 1
         end
