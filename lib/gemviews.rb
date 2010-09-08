@@ -97,7 +97,7 @@ class UpdateDlg < Qt::Dialog
         @gem = gem
         @versionComboBox.clear
         self.windowTitle = @msgLabel.text = i18n('Update Gem %s') % gem.name
-        vers = gem.versions
+        vers = gem.availableVersions
         return unless vers
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
@@ -240,7 +240,7 @@ class SelectInstallVerDlg < Qt::Dialog
     slots :checkOtherVersion
     def checkOtherVersion
         @versionComboBox.clear
-        vers = @gem.versions
+        vers = @gem.availableVersions
         return unless vers
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
@@ -314,7 +314,7 @@ class SelectDownloadVerDlg < Qt::Dialog
     slots :checkOtherVersion
     def checkOtherVersion
         @versionComboBox.clear
-        vers = @gem.versions
+        vers = @gem.availableVersions
         return unless vers
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
@@ -464,9 +464,9 @@ Pristine All ?
     end
 
     def upgradable(gem)
-        time =  Benchmark.realtime { gem.versions }
+        time =  Benchmark.realtime { gem.availableVersions }
         puts "Time : " + time.to_s
-        gem.versions.first != gem.nowVersion
+        gem.availableVersions.first != gem.nowVersion
     end
 
     slots :updateAll

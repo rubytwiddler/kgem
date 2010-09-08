@@ -45,7 +45,8 @@ class GemItem
         version.split(/,/, 2).first
     end
 
-    def versions
+    # available versions at remote server.
+    def availableVersions
         return @versions if instance_variable_defined? :@versions
 
         res = %x{ gem list #{name} -a -r }
@@ -123,7 +124,20 @@ module InstalledGemList
         ensure
             gemf.close
         end
-        @gemList = gemList
+
+        oldeGems = gemList.inject([]) do |s, g|
+            vers = g.version.split(/,/).map { |v| v.strip }
+            if vers.size > 1 then
+                g.version = vers.shift
+                vers.each do |v|
+                    dupg = g.dup
+                    dupg.version = v
+                    s << dupg
+                end
+            end
+            s
+        end
+        @gemList = gemList + oldeGems
     end
 
     def getCached

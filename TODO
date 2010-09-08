@@ -1,3 +1,4 @@
+*list installed gems separated by versions.
 *select version for view files.
 *respect .gemrc
 
