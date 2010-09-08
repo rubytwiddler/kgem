@@ -1,11 +1,8 @@
-*list installed gems separated by versions.
-*select version for view files.
 *respect .gemrc
 
-*check
-*clean up
-*prestine
-*cert
+*check stale
+*check alian
+*check cert
 *settings - add github
 *bug text cr/lf
 *version check progress dialog

@@ -214,7 +214,7 @@ class InstalledGemWin < Qt::Widget
             item.gem.spec = spec
         end
         @gemViewer.setDetail( item.gem )
-        files = %x{gem contents --prefix #{item.gem.package}}.split(/[\r\n]+/)
+        files = %x{gem contents --prefix #{item.gem.package} -v #{item.gem.version}}.split(/[\r\n]+/)
         @gemViewer.setFiles( files )
 
         proc = lambda do |item|
