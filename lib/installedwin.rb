@@ -1,6 +1,20 @@
 #
 #
 #
+
+class StaleGemItem
+    attr_reader :name, :version, :atime
+    def initialize(name, ver, atime)
+        @name = name
+        @version = ver
+        @atime = atime
+    end
+end
+
+
+#-----------------------------------------------
+#
+#
 class GemListTable < Qt::TableWidget
     #
     #
@@ -20,12 +34,13 @@ class GemListTable < Qt::TableWidget
     PACKAGE_NAME = 0
     PACKAGE_VERSION = 1
     PACKAGE_SUMMARY = 2
+    PACKAGE_ATIME = 3
 
     def initialize(title)
-        super(0,3)
+        super(0,4)
 
         self.windowTitle = title
-        setHorizontalHeaderLabels(['package', 'version', 'summary'])
+        setHorizontalHeaderLabels(['package', 'version', 'summary', 'last access'])
         self.horizontalHeader.stretchLastSection = true
         self.selectionBehavior = Qt::AbstractItemView::SelectRows
         self.selectionMode = Qt::AbstractItemView::SingleSelection
@@ -44,6 +59,7 @@ class GemListTable < Qt::TableWidget
         setItem( row, PACKAGE_NAME, nameItem  )
         setItem( row, PACKAGE_VERSION, Item.new(gem.version) )
         setItem( row, PACKAGE_SUMMARY, Item.new(gem.summary) )
+        setItem( row, PACKAGE_ATIME, Item.new('') )
     end
 
 
@@ -101,6 +117,14 @@ class GemListTable < Qt::TableWidget
         end
     end
 
+    # @return : number : row of found item.
+    def find
+        rowCount.times do |r|
+            i = gemAtRow(r)
+            return r if yield i
+        end
+        false
+    end
 end
 
 
@@ -197,6 +221,19 @@ class InstalledGemWin < Qt::Widget
     def updateInstalledGemList
         gemList = InstalledGemList.get
         @installedGemsTable.updateGemList(gemList)
+    end
+
+    def setStaleTime(stales)
+        stales.each do |i|
+            r = @installedGemsTable.find do |g|
+                    g.name == i.name && g.version == i.version
+            end
+            if r then
+                @installedGemsTable.item(r, GemListTable::PACKAGE_ATIME).text = i.atime.to_s
+            end
+        end
+        @installedGemsTable.sortItems(GemListTable::PACKAGE_ATIME)
+        parent.parent.currentIndex = parent.indexOf(self)
     end
 
     attr_accessor :gemViewer

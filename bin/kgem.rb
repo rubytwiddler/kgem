@@ -178,6 +178,7 @@ class MainWindow < KDE::MainWindow
         @installedGemWin = InstalledGemWin.new(self) do |w|
             w.gemViewer = @gemViewer
             @gemViewer.addInstallWatcher(w)
+            @gemViewer.setInstallWin(w)
         end
         @searchWin = SearchWin.new(self) do |w|
             w.gemViewer = @gemViewer

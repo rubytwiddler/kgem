@@ -1,5 +1,6 @@
 require 'cgi'
 require 'benchmark'
+require 'date'
 
 #--------------------------------------------------------------------------------
 #
@@ -378,6 +379,10 @@ class DockGemViewer < Qt::Object
         @filesView.setFiles(files)
     end
 
+    def setInstallWin(win)
+        @installWin = win
+    end
+
     # @param ex : Exception.
     def setError(gem, ex)
         @detailView.setError(gem, ex)
@@ -448,8 +453,18 @@ Pristine All ?
     def checkAlian
     end
 
+
     slots :checkStale
     def checkStale
+        lines = %x{ gem stale }.split(/\n/)
+        stales = []
+        lines.each do |l|
+            gv, t = l.split(/ at /, 2)
+            atime = Date.parse(t.strip)
+            m = gv.match(/(.*)-([^\-]+)/)
+            stales << StaleGemItem.new( m[1].strip, m[2].strip, atime )
+        end
+        @installWin.setStaleTime(stales)
     end
 
     slots :updateSystem
