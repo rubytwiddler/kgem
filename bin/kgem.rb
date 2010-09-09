@@ -75,9 +75,9 @@ class MainWindow < KDE::MainWindow
         checkStaleAction = @actions.addNew('Check Stale', self, \
             { :icon => 'checkbox', :shortCut => 'F7', \
               :triggered => [@gemViewer, :checkStale] })
-        checkAlianAction = @actions.addNew('Check Alian', self, \
+        checkAlienAction = @actions.addNew('Check Alien', self, \
             { :icon => 'checkbox', :shortCut => 'F8', \
-              :triggered => [@gemViewer, :checkAlian] })
+              :triggered => [@gemViewer, :checkAlien] })
         cleanUpAction = @actions.addNew('Clean Up', self, \
             { :icon => 'edit-clear', :shortCut => 'F9', \
               :triggered => [@gemViewer, :cleanUp] })
@@ -92,7 +92,7 @@ class MainWindow < KDE::MainWindow
         toolsMenu.addAction(updateSystemAction)
         toolsMenu.addSeparator
         toolsMenu.addAction(checkStaleAction)
-        toolsMenu.addAction(checkAlianAction)
+        toolsMenu.addAction(checkAlienAction)
         toolsMenu.addSeparator
         toolsMenu.addAction(cleanUpAction)
         toolsMenu.addAction(updateAllAction)

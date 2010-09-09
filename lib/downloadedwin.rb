@@ -196,6 +196,7 @@ class DownloadedWin < Qt::Widget
         filePath = fetchedGem.filePath
         return unless File.exist?(filePath)
 
+        @installBtn.enabled =  @deleteBtn.enabled = ! fetchedGem.installed
         files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
         files.unshift
         @gemViewer.setFiles(files)

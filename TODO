@@ -1,7 +1,6 @@
 *respect .gemrc
 
-*check stale
-*check alian
+*check alien
 *check cert
 *settings - add github
 *bug text cr/lf

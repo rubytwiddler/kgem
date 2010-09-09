@@ -332,7 +332,6 @@ class SelectDownloadVerDlg < Qt::Dialog
     def makeDownloadArgs
         args = [ 'fetch' ]
         args.push( @gem.package )
-        args.push( '-r' )
         if @versionComboBox.currentIndex != 0 then
             args.push( '-v' )
             args.push( @versionComboBox.currentText )
@@ -421,7 +420,14 @@ class DockGemViewer < Qt::Object
         cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         @terminalWin.processStart(cmd, args) do |ret|
             if ret == 0 then
-                passiveMessage("Cleaned Up old versions of gems.")
+                passiveMessage("Cleaned Up old versions of gems (system).")
+                cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+                @terminalWin.processStart(cmd, args) do |ret|
+                    notifyInstall
+                    if ret == 0 then
+                        passiveMessage("Cleaned Up old versions of gems (in user).")
+                    end
+                end
             end
         end
     end
@@ -449,8 +455,16 @@ Pristine All ?
         end
     end
 
-    slots :checkAlian
-    def checkAlian
+    slots :checkAlien
+    def checkAlien
+        cmd = "gem"
+        args = %w{ check --alien }
+        @terminalWin.visible = true
+        @terminalWin.processStart(cmd, args) do |ret|
+            if ret == 0 then
+                passiveMessage("checked alien see Output Dock window for detail.")
+            end
+        end
     end
 
 
@@ -497,13 +511,13 @@ Pristine All ?
                 args << '--user-install'
                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
                 @terminalWin.processStart(cmd, args) do |ret|
+                    notifyInstall
+                    notifyDownload
                     if ret == 0 then
                         passiveMessage("Updated All Gems (in user).")
                     end
                 end
             end
-            notifyInstall
-            notifyDownload
         end
 
     end
@@ -575,7 +589,6 @@ Pristine All ?
         @selectDownloadVerDlg ||= SelectDownloadVerDlg.new
         return unless @selectDownloadVerDlg.selectVersion(gem)
 
-        args = @selectDownloadVerDlg.makeInstallArgs
         if Settings.autoFetchFlag then
             dir = Settings.autoFetchDir.pathOrUrl
         else
