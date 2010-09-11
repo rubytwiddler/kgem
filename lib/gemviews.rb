@@ -2,6 +2,8 @@ require 'cgi'
 require 'benchmark'
 require 'date'
 
+
+
 #--------------------------------------------------------------------------------
 #
 #
@@ -72,7 +74,6 @@ class UpdateDlg < Qt::Dialog
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
 
         @optionsPage = InstallOptionsPage.new
-        @settingsManager = KDE::ConfigDialogManager.new(@optionsPage, Settings.instance)
 
         # layout
         @versionWidget = HBoxLayoutWidget.new do |l|
@@ -102,7 +103,7 @@ class UpdateDlg < Qt::Dialog
         return unless vers
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
-        @settingsManager.updateWidgets
+        Settings.updateWidgets(self)
         exec == Qt::Dialog::Accepted
     end
 
@@ -112,7 +113,7 @@ class UpdateDlg < Qt::Dialog
         @versionWidget.visible = false
         self.windowTitle = @msgLabel.text = i18n('Update All Gems')
 
-        @settingsManager.updateWidgets
+        Settings.updateWidgets(self)
         exec == Qt::Dialog::Accepted
     end
 
@@ -120,7 +121,7 @@ class UpdateDlg < Qt::Dialog
     include InstallOption
 
     def makeUpdateArgs
-        @settingsManager.updateSettings
+        Settings.updateSettings(self)
 
         args = [ 'update' ]
         unless @allCheckBox.checked then
@@ -222,15 +223,16 @@ class SelectInstallVerDlg < Qt::Dialog
         connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
         @versionComboBox = Qt::ComboBox.new
         @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
+        @skipVersionCheck.objectName = 'kcfg_installLatestFlag'
         @forceCheckBox = Qt::CheckBox.new(i18n('Force gem to install, bypassing dependency checks'))
 
         @optionsPage = InstallOptionsPage.new
-        @settingsManager = KDE::ConfigDialogManager.new(@optionsPage, Settings.instance)
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
             l.addWidget(@msgLabel)
             l.addWidgets('Version :', @versionComboBox, @checkOtherVersion, nil)
+            l.addWidget(@skipVersionCheck)
             l.addWidget(@forceCheckBox)
             l.addWidget(@optionsPage)
             l.addWidgets(nil, @okBtn, @cancelBtn)
@@ -252,13 +254,14 @@ class SelectInstallVerDlg < Qt::Dialog
         @versionComboBox.clear
         @versionComboBox.addItem(gem.version)
         @msgLabel.text = 'Install gem ' + gem.name + ' (' + gem.version.strip + ')'
-        @settingsManager.updateWidgets
+        Settings.updateWidgets(self)
+        return true if @skipVersionCheck.checked
         exec == Qt::Dialog::Accepted
     end
 
     include InstallOption
     def makeInstallArgs(localFlag)
-        @settingsManager.updateSettings
+        Settings.updateSettings(self)
 
         args = [ 'install' ]
         if @versionComboBox.currentIndex != 0 then
@@ -301,6 +304,7 @@ class SelectDownloadVerDlg < Qt::Dialog
         connect(@checkOtherVersion , SIGNAL(:clicked), self, SLOT(:checkOtherVersion))
         @versionComboBox = Qt::ComboBox.new
         @skipVersionCheck = Qt::CheckBox.new(i18n('Always Accept Latest Version to Skip This Dialog'))
+        @skipVersionCheck.objectName = 'kcfg_downloadLatestFlag'
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
@@ -326,10 +330,14 @@ class SelectDownloadVerDlg < Qt::Dialog
         @versionComboBox.clear
         @versionComboBox.addItem(gem.version)
         @msgLabel.text = 'Download gem ' + gem.name + ' (' + gem.version.strip + ')'
+        Settings.updateWidgets(self)
+        return true if @skipVersionCheck.checked
         exec == Qt::Dialog::Accepted
     end
 
     def makeDownloadArgs
+        Settings.updateSettings(self)
+
         args = [ 'fetch' ]
         args.push( @gem.package )
         if @versionComboBox.currentIndex != 0 then
@@ -422,11 +430,9 @@ class DockGemViewer < Qt::Object
             if ret == 0 then
                 passiveMessage("Cleaned Up old versions of gems (system).")
                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-                @terminalWin.processStart(cmd, args) do |ret|
+                @terminalWin.processStart(cmd, args, \
+                                          i18n("Cleaned Up old versions of gems (in user).")) do |ret|
                     notifyInstall
-                    if ret == 0 then
-                        passiveMessage("Cleaned Up old versions of gems (in user).")
-                    end
                 end
             end
         end
@@ -448,11 +454,7 @@ Pristine All ?
 
         args = %w{ pristine --all }
         cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        @terminalWin.processStart(cmd, args) do |ret|
-            if ret == 0 then
-                passiveMessage("Pristined All.")
-            end
-        end
+        @terminalWin.processStart(cmd, args, i18n("Pristined All."))
     end
 
     slots :checkAlien
@@ -460,11 +462,7 @@ Pristine All ?
         cmd = "gem"
         args = %w{ check --alien }
         @terminalWin.visible = true
-        @terminalWin.processStart(cmd, args) do |ret|
-            if ret == 0 then
-                passiveMessage("checked alien see Output Dock window for detail.")
-            end
-        end
+        @terminalWin.processStart(cmd, args, i18n("checked alien see Output Dock window for detail."))
     end
 
 
@@ -485,11 +483,7 @@ Pristine All ?
     def updateSystem
         args = %w{ update --system }
         cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        @terminalWin.processStart(cmd, args) do |ret|
-            if ret == 0 then
-                passiveMessage("Updated All Gems.")
-            end
-        end
+        @terminalWin.processStart(cmd, args, i18n("Updated All Gems."))
     end
 
     def upgradable(gem)
@@ -505,17 +499,13 @@ Pristine All ?
 
         args = @updateDlg.makeUpdateArgs
         cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        @terminalWin.processStart(cmd, args) do |ret|
+        @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in system).")) do |ret|
             if ret == 0 then
-                passiveMessage("Updated All Gems (in system).")
                 args << '--user-install'
                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-                @terminalWin.processStart(cmd, args) do |ret|
+                @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in user).")) do |ret|
                     notifyInstall
                     notifyDownload
-                    if ret == 0 then
-                        passiveMessage("Updated All Gems (in user).")
-                    end
                 end
             end
         end
@@ -538,12 +528,9 @@ Pristine All ?
         else
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         end
-        @terminalWin.processStart(cmd, args) do |ret|
+        @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
             notifyInstall
             notifyDownload
-            if ret == 0 then
-                passiveMessage("Installed #{gem.package}")
-            end
         end
     end
 
@@ -558,12 +545,9 @@ Pristine All ?
             args.push( '--user-install' )
             cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
         end
-        @terminalWin.processStart(cmd, args) do |ret|
+        @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
             notifyInstall
             notifyDownload
-            if ret == 0 then
-                passiveMessage("Installed #{gem.package}")
-            end
         end
     end
 
@@ -577,11 +561,8 @@ Pristine All ?
         else
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         end
-        @terminalWin.processStart(cmd, args) do |ret|
+        @terminalWin.processStart(cmd, args, "Uninstalled #{gem.package}") do |ret|
             notifyInstall
-            if ret == 0 then
-                passiveMessage("Uninstalled #{gem.package}")
-            end
         end
     end
 
@@ -599,13 +580,9 @@ Pristine All ?
         Dir.chdir(dir)
         cmd = 'gem'
         args = @selectDownloadVerDlg.makeDownloadArgs
-        @terminalWin.processStart(cmd, args) do |ret|
+        @terminalWin.processStart(cmd, args, "Downloaded #{gem.package}" \
+                                  "Download #{gem.package} failed.") do |ret|
             notifyDownload
-            if ret == 0 then
-                passiveMessage("Downloaded #{gem.package}")
-            else
-                passiveMessage("Download #{gem.package} failed.")
-            end
         end
     end
 
@@ -621,11 +598,7 @@ Pristine All ?
         else
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         end
-        @terminalWin.processStart(cmd, args) do |ret|
-            if ret == 0 then
-                passiveMessage("Generated rdoc/ri for #{gem.package}")
-            end
-        end
+        @terminalWin.processStart(cmd, args, "Generated rdoc/ri for #{gem.package}")
     end
 end
 
@@ -802,7 +775,6 @@ class TerminalWin < Qt::DockWidget
     end
 
     def processSetup
-        @error = 0
         @process = Qt::Process.new(self)
         @process.setProcessChannelMode(Qt::Process::MergedChannels)
         connect(@process, SIGNAL('finished(int,QProcess::ExitStatus)'),
@@ -817,7 +789,7 @@ class TerminalWin < Qt::DockWidget
         @textEdit.append(text)
     end
 
-    def processStart(cmd, args, &block)
+    def processStart(cmd, args, successMsg='Successed', failMsg='Failed', &block)
         unless @process.state == Qt::Process::NotRunning
             msg = "process is already running."
             write(msg)
@@ -825,6 +797,9 @@ class TerminalWin < Qt::DockWidget
             return
         end
         puts "execute : " + cmd.inspect + " " + args.join(' ').inspect
+        @successMsg = successMsg
+        @failMsg = failMsg
+        @error = 0
         @canceled = 1
         @process.start(cmd, args)
         @finishProc = block
@@ -832,15 +807,19 @@ class TerminalWin < Qt::DockWidget
 
     def processfinished(exitCode, exitStatus)
         write( @process.readAll.data )
+#         puts "exitCode:#{exitCode}, @error:#{@error}, @canceled:#{@canceled}"
+        ret = exitCode  | @error | @canceled
+        msg = ret == 0 ? @successMsg : @failMsg
+        passiveMessage(msg)
         if @finishProc
-            @finishProc.call(exitCode | @error | @canceled )
+            @finishProc.call(ret)
         end
     end
 
     def checkErrorInMsg(msg)
         @canceled = 0
-        if msg =~ /Exiting [\w\s]+ exit_code \d/i
-            @error = 1
+        if msg =~ /Exiting [\w\s]+ exit_code (\d)/i
+            @error = $1.to_i
         end
     end
 

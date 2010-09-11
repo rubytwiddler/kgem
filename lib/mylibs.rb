@@ -248,9 +248,9 @@ class SettingsBase < KDE::ConfigSkeleton
 
             def set#{name}(v)
                 item = findItem('#{name}')
-                unless item.immutable?
+#                 unless item.immutable?
                     item.property = @#{name} = Qt::Variant.fromValue(v)
-                end
+#                 end
             end
 
             def self.set#{name}(v)
@@ -266,6 +266,72 @@ class SettingsBase < KDE::ConfigSkeleton
                 self.set#{name}(v)
             end
         }
+    end
+
+    def self.allChildren(obj)
+        all = children = obj.children
+        children.each do |o|
+            all += allChildren(o)
+        end
+        all
+    end
+
+    def self.printAllProperties(obj)
+        puts "============= settings properties =============="
+        options = self.instance
+        allChildren(obj).each do |o|
+            if o.objectName =~ /^kcfg_/ then
+                name = o.objectName.sub(/^kcfg_/, '')
+                if o.kind_of? Qt::CheckBox
+                    prop = o.checked.to_s
+                else
+                    prop = '?'
+                end
+                if options.respond_to? name then
+                    val = options.send(name).inspect
+                else
+                    val = ''
+                end
+                puts " name:#{name}, property:#{prop}, settings value:#{val}"
+            end
+        end
+    end
+
+    def self.updateWidgets(obj)
+        options = self.instance
+        allChildren(obj).each do |o|
+            if o.objectName =~ /^kcfg_/ then
+                name = o.objectName.sub(/^kcfg_/, '')
+                if options.respond_to? name then
+                    val = options.send(name)
+                    if o.kind_of? Qt::CheckBox
+                        o.checked = val
+                    elsif o.kind_of? Qt::ComboBox
+                        o.currentIndex = val
+                    elsif o.kind_of? KDE::UrlRequester
+                        o.setUrl(val)
+                    end
+                end
+            end
+        end
+    end
+
+    def self.updateSettings(obj)
+        options = self.instance
+        allChildren(obj).each do |o|
+            if o.objectName =~ /^kcfg_/ then
+                name = o.objectName.sub(/^kcfg_/, '') + '='
+                if options.respond_to? name then
+                    if o.kind_of? Qt::CheckBox
+                        options.send(name, o.checked)
+                    elsif o.kind_of? Qt::ComboBox
+                        options.send(name, o.currentIndex)
+                    elsif o.kind_of? KDE::UrlRequester
+                        options.send(name, o.url)
+                    end
+                end
+            end
+        end
     end
 end
 

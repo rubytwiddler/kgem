@@ -1,6 +1,8 @@
 *respect .gemrc
+*search history
+*open download/unpack dir in settings dialog
 
-*check alien
+*check test
 *check cert
 *settings - add github
 *bug text cr/lf

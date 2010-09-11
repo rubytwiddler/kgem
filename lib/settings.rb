@@ -15,7 +15,6 @@ class Settings < SettingsBase
         setCurrentGroup("Preferences")
 
         # folder settings.
-        addBoolItem(:installInSystemDirFlag, true)
         addBoolItem(:autoFetchFlag, false)
         addUrlItem(:autoFetchDir,
                    File.join(KDE::GlobalSettings.downloadPath, 'gem_cache'))
@@ -25,6 +24,7 @@ class Settings < SettingsBase
         addBoolItem(:downloadLatestFlag, false)
 
         # install option settings.
+        addBoolItem(:installInSystemDirFlag, true)
         addBoolItem(:installRdocFlag, true)
         addBoolItem(:installRiFlag, true)
         addBoolItem(:installSheBangFlag, false)
@@ -50,26 +50,24 @@ class GeneralSettingsPage < Qt::Widget
     end
 
     def createWidget
-        @installInSystemCheckBox = Qt::CheckBox.new(i18n("Install in System Directory. (Root access Required)"))
-        @autoFetchCheckBox = Qt::CheckBox.new(i18n("auto download for fetch without asking location every time."))
+        @autoFetchCheckBox = Qt::CheckBox.new(i18n("Always Download gem in same directory."))
         @downloadUrl = KDE::UrlRequester.new(KDE::Url.new())
         @downloadUrl.enabled = false
         @downloadUrl.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoFetchCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoFetchChanged(int)'))
 
-        @autoUnpackCheckBox = Qt::CheckBox.new(i18n("auto Unpack without asking location every time."))
+        @autoUnpackCheckBox = Qt::CheckBox.new(i18n("Always Unpack gem in same directory."))
         @unpackUrl = KDE::UrlRequester.new(KDE::Url.new())
         @unpackUrl.enabled = false
         @unpackUrl.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoUnpackCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoUnpackChanged(int)'))
-        @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install Latest Version to skip version selection."))
-        @downloadLatestCheckBox = Qt::CheckBox.new(i18n("Always Download Latest Version to skip version selection."))
+        @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install latest version to skip version selection."))
+        @downloadLatestCheckBox = Qt::CheckBox.new(i18n("Always Download latest version to skip version selection."))
 
         # objectNames
         #  'kcfg_' + class Settings's instance name.
-        @installInSystemCheckBox.objectName = 'kcfg_installInSystemDirFlag'
         @autoFetchCheckBox.objectName = 'kcfg_autoFetchFlag'
         @downloadUrl.objectName = 'kcfg_autoFetchDir'
         @autoUnpackCheckBox.objectName = 'kcfg_autoUnpackFlag'
@@ -79,13 +77,12 @@ class GeneralSettingsPage < Qt::Widget
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
-            l.addWidget(@installInSystemCheckBox)
+            l.addWidget(@installLatestCheckBox)
+            l.addWidget(@downloadLatestCheckBox)
             l.addWidget(@autoFetchCheckBox)
             l.addWidgets('   ', @downloadUrl)
             l.addWidget(@autoUnpackCheckBox)
             l.addWidgets('   ', @unpackUrl)
-            l.addWidget(@installLatestCheckBox)
-            l.addWidget(@downloadLatestCheckBox)
             l.addStretch
         end
         setLayout(lo)
@@ -110,6 +107,7 @@ class InstallOptionsPage < Qt::Widget
     end
 
     def createWidget
+        @installInSystemCheckBox = Qt::CheckBox.new(i18n("Install in System Directory. (Root access Required)"))
         @rdocCheckBox = Qt::CheckBox.new(i18n('Generate RDoc Documentation'))
         @riCheckBox = Qt::CheckBox.new(i18n('Generate RI Documentation'))
         @sheBangCheckBox = Qt::CheckBox.new(i18n('Rewrite the shebang line on installed scripts to use /usr/bin/env'))
@@ -125,8 +123,10 @@ class InstallOptionsPage < Qt::Widget
 #         formatExeLabel.wordWrap = true
         @trustPolicyComboBox = Qt::ComboBox.new
         @trustPolicyComboBox.addItems(TrustPolicies)
+
         # objectNames
         #  'kcfg_' + class Settings's instance name.
+        @installInSystemCheckBox.objectName = 'kcfg_installInSystemDirFlag'
         @rdocCheckBox.objectName = 'kcfg_installRdocFlag'
         @riCheckBox.objectName = 'kcfg_installRiFlag'
         @sheBangCheckBox.objectName = 'kcfg_installSheBangFlag'
@@ -140,6 +140,7 @@ class InstallOptionsPage < Qt::Widget
 
         # layout
         lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@installInSystemCheckBox)
             l.addWidget(@rdocCheckBox)
             l.addWidget(@riCheckBox)
             l.addWidget(@sheBangCheckBox)

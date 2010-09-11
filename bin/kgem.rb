@@ -255,6 +255,7 @@ class MainWindow < KDE::MainWindow
 
     slots :configureApp
     def configureApp
+        Settings.updateWidgets(@settingsDlg)
         @settingsDlg.exec
     end
 
