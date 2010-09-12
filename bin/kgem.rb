@@ -131,13 +131,14 @@ class MainWindow < KDE::MainWindow
         openSourceAction = @actions.addNew(i18n('Open Source Folder'), self, \
             { :icon => 'document-open-folder', :triggered => :openSource })
         openRdocAction = @actions.addNew(i18n('Open Rdoc'), self, \
-            { :icon => 'document-open-folder', :triggered => :openRdoc })
+            { :icon => 'help-contents', :triggered => :openRdoc })
         envAction = @actions.addNew(i18n('Check Gem Environment'), self, \
             { :triggered => :checkEnv })
 
         helpMenu = KDE::Menu.new(i18n('&Help'), self)
         helpMenu.addAction(openDocUrlAction)
         helpMenu.addAction(openReportIssueUrlAction)
+        helpMenu.addAction(openRdocAction)
         helpMenu.addAction(openSourceAction)
         helpMenu.addAction(envAction)
         helpMenu.addAction(gemHelpAction)
@@ -237,7 +238,7 @@ class MainWindow < KDE::MainWindow
 
     slots :openRdoc
     def openRdoc
-
+        @gemViewer.viewGemRdoc(GemItem::getGemfromPath(APP_NAME))
     end
 
     slots :checkEnv
