@@ -54,10 +54,11 @@ Exec=kgem %f
 Icon=kgem
 Terminal=false
 Type=Application
-Categories=Tool
+Categories=Qt;KDE;Utility;
 MimeType=application/x-gem;
     EOF
                )
+        %x{ update-menus }
     end
 end
 

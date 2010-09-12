@@ -1,7 +1,6 @@
-*respect .gemrc
-*test require development dependencies. command install/test.
 
 *check cert
+*respect .gemrc
 *settings - add github
 *version check waiting dialog
 *cache gem

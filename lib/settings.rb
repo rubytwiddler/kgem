@@ -141,6 +141,12 @@ class InstallOptionsPage < Qt::Widget
         @trustPolicyComboBox = Qt::ComboBox.new
         @trustPolicyComboBox.addItems(TrustPolicies)
 
+        # connect signals,slots
+        connect(@utestCheckBox, SIGNAL('stateChanged(int)'), self, \
+                SLOT('utestChanged(int)'))
+        connect(@developmentDepsCheckBox, SIGNAL('stateChanged(int)'), self, \
+                SLOT('devDepsChanged(int)'))
+
         # objectNames
         #  'kcfg_' + class Settings's instance name.
         @installInSystemCheckBox.objectName = 'kcfg_installInSystemDirFlag'
@@ -172,6 +178,16 @@ class InstallOptionsPage < Qt::Widget
             l.addStretch
         end
         setLayout(lo)
+    end
+
+    slots 'utestChanged(int)'
+    def utestChanged(state)
+        @developmentDepsCheckBox.setCheckState(state)
+    end
+
+    slots 'devDepsChanged(int)'
+    def devDepsChanged(state)
+        @utestCheckBox.setCheckState(state) if state == Qt::Unchecked
     end
 
     def installInSystemVisible=(flag)
