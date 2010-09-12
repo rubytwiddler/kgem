@@ -80,8 +80,8 @@ class SearchWin < Qt::Widget
 
     def createWidget
         @gemList = SearchTable.new
-        @searchLine = KDE::LineEdit.new do |w|
-            w.setClearButtonShown(true)
+        @searchLine = KDE::HistoryComboBox.new do |w|
+            w.sizePolicy = Qt::SizePolicy.new(Qt::SizePolicy::Expanding, Qt::SizePolicy::Fixed,  Qt::SizePolicy::LineEdit)
         end
 
         @searchBtn = KDE::PushButton.new(KDE::Icon.new('search'), i18n('Search'))
@@ -125,10 +125,11 @@ class SearchWin < Qt::Widget
 
     slots  :search
     def search
-        res = Net::HTTP.get(URI.parse( 'http://rubygems.org/api/v1/search.json?query=' + URI.escape(@searchLine.text)))
+        res = Net::HTTP.get(URI.parse( 'http://rubygems.org/api/v1/search.json?query=' + URI.escape(@searchLine.currentText)))
         gems = JSON.parse(res)
         gems.map! do |g| GemItem.parseHashGem(g) end
         @gemList.updateGemList(gems)
+        @searchLine.insertItems([@searchLine.currentText])
     end
 
 

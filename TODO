@@ -1,7 +1,5 @@
 *respect .gemrc
-*search history
-*open kgem rdoc
-*test require development dependencies.
+*test require development dependencies. command install/test.
 
 *check cert
 *settings - add github
