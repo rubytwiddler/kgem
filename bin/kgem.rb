@@ -39,6 +39,7 @@ require "installedwin"
 require "searchwin"
 require "downloadedwin"
 require "previewwin"
+require "gemcmddlgs"
 require "gemviews"
 require "gemhelpdlg"
 

@@ -1,9 +1,9 @@
 *respect .gemrc
 *search history
-*open download/unpack dir in settings dialog
+*check stale make different rows selected.
 
 *check test
 *check cert
 *settings - add github
 *bug text cr/lf
-*version check progress dialog
+*version check waiting dialog
