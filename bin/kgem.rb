@@ -119,34 +119,27 @@ class MainWindow < KDE::MainWindow
 
 
         # Help menu
-        gemHelpAction = KDE::Action.new('Gem Command Line Help', self)
-        gemHelpAction .setShortcut(KDE::Shortcut.new('F1'))
-        @actions.addAction(gemHelpAction.text, gemHelpAction)
-        connect(gemHelpAction, SIGNAL(:triggered), self, SLOT(:gemCommandHelp))
-
         aboutDlg = KDE::AboutApplicationDialog.new($about)
-        openAboutAction = KDE::Action.new(KDE::Icon.new('help-about'),
-                                          i18n('About kgem'), self)
-        connect(openAboutAction, SIGNAL(:triggered), aboutDlg, SLOT(:exec))
-
-        #
-        openDocUrlAction = KDE::Action.new(KDE::Icon.new('help-contents'),
-                                           i18n('Open Document Wiki'), self)
-        connect(openDocUrlAction, SIGNAL(:triggered), self, SLOT(:openDocUrl))
-
-        #
-        openReportIssueUrlAction = KDE::Action.new(
-            KDE::Icon.new('tools-report-bug'), i18n('Report Bug'), self)
-        connect(openReportIssueUrlAction, SIGNAL(:triggered), self,
-                SLOT(:openReportIssueUrl))
-        openSourceAction = KDE::Action.new(KDE::Icon.new('document-open-folder'),
-                                           i18n('Open Source Folder'), self)
-        connect(openSourceAction, SIGNAL(:triggered), self, SLOT(:openSource))
+        gemHelpAction = @actions.addNew(i18n('Gem Command Line Help'), self, \
+            { :icon => 'help-about', :shortCut => 'F1', :triggered => :gemCommandHelp })
+        openAboutAction = @actions.addNew(i18n('About kgem'), self, \
+            { :icon => 'help-about', :triggered => [ aboutDlg, :exec ] })
+        openDocUrlAction = @actions.addNew(i18n('Open Document Wiki'), self, \
+            { :icon => 'help-contents', :triggered => :openDocUrl })
+        openReportIssueUrlAction = @actions.addNew(i18n('Report Bug'), self, \
+            { :icon => 'tools-report-bug', :triggered => :openReportIssueUrl })
+        openSourceAction = @actions.addNew(i18n('Open Source Folder'), self, \
+            { :icon => 'document-open-folder', :triggered => :openSource })
+        openRdocAction = @actions.addNew(i18n('Open Rdoc'), self, \
+            { :icon => 'document-open-folder', :triggered => :openRdoc })
+        envAction = @actions.addNew(i18n('Check Gem Environment'), self, \
+            { :triggered => :checkEnv })
 
         helpMenu = KDE::Menu.new(i18n('&Help'), self)
         helpMenu.addAction(openDocUrlAction)
         helpMenu.addAction(openReportIssueUrlAction)
         helpMenu.addAction(openSourceAction)
+        helpMenu.addAction(envAction)
         helpMenu.addAction(gemHelpAction)
         helpMenu.addSeparator
         helpMenu.addAction(openAboutAction)
@@ -173,6 +166,7 @@ class MainWindow < KDE::MainWindow
         tabifyDockWidget(@fileListWin, @terminalWin)
 
         @previewWin = PreviewWin.new
+        @gemEnvDlg = GemEnvDlg.new
 
         # tab windows
         @gemViewer = DockGemViewer.new(self, @detailWin, @fileListWin, @terminalWin, @previewWin)
@@ -241,6 +235,16 @@ class MainWindow < KDE::MainWindow
         openDirectory(APP_DIR)
     end
 
+    slots :openRdoc
+    def openRdoc
+
+    end
+
+    slots :checkEnv
+    def checkEnv
+        @gemEnvDlg.displayEnv
+    end
+
     def openUrlDocument(url)
         cmd= Mime::services('.html').first.exec
         cmd.gsub!(/%\w+/, url)
@@ -265,6 +269,43 @@ class MainWindow < KDE::MainWindow
 end
 
 
+#------------------------------------------------------------
+#
+#
+class GemEnvDlg < Qt::Dialog
+    def initialize(parent=nil)
+        super(parent)
+        createWidget
+    end
+
+    def createWidget
+        @textEdit = Qt::TextEdit.new
+        @textEdit.readOnly = true
+        @closeBtn = KDE::PushButton.new(KDE::Icon.new('dialog-close'), i18n('Close'))
+        connect(@closeBtn, SIGNAL(:clicked), self, SLOT(:accept))
+
+        # layout
+        lo = Qt::VBoxLayout.new do |l|
+            l.addWidget(@textEdit)
+            l.addWidgets(nil, @closeBtn)
+        end
+        setLayout(lo)
+    end
+
+    def writeEnvData
+        @textEdit.setPlainText( %x{ gem env } )
+        resize(460,440)
+        @wroteEnv = true
+    end
+
+    def displayEnv
+        writeEnvData unless @wroteEnv
+        exec
+    end
+end
+
+
+#------------------------------------------------------------------------------
 #
 #    main start
 #
