@@ -66,8 +66,8 @@ class GeneralSettingsPage < Qt::Widget
         @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install latest version to skip version selection."))
         @downloadLatestCheckBox = Qt::CheckBox.new(i18n("Always Download latest version to skip version selection."))
 
-        @openDownloadDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open Dir')
-        @openUnpackDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open Dir')
+        @openDownloadDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open')
+        @openUnpackDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open')
         connect(@openDownloadDir, SIGNAL(:clicked), self, SLOT(:openDownloadDir))
         connect(@openUnpackDir, SIGNAL(:clicked), self, SLOT(:openUnpackDir))
 

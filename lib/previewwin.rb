@@ -53,7 +53,7 @@ class PreviewWin < Qt::Widget
     def setText(title, text)
         @titleLabel.text = title
         @document.setReadWrite(true)
-        @document.setText(text)
+        @document.setText(text.gsub(/\r\n/, "\n"))
         puts " Text mode = " + findMode(title)
         @document.setMode(findMode(title))
         @document.setReadWrite(false)

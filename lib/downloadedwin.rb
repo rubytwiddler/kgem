@@ -240,7 +240,7 @@ class DownloadedWin < Qt::Widget
     slots  :unpack
     def unpack
         fetchedGem = @gemFileList.currentGem
-        fileName = fetchedGem.fileName
+        fileName = fetchedGem.filePath
         if Settings.autoUnpackFlag then
             dir = Settings.autoUnpackDir.pathOrUrl
         else
@@ -248,6 +248,7 @@ class DownloadedWin < Qt::Widget
             return unless dir
             Settings.autoUnpackDir.setUrl(dir)
         end
+        puts %Q{ execute: gem unpack #{fileName} --target=#{dir.shellescape} }
         %x{ gem unpack #{fileName} --target=#{dir.shellescape} }
     end
 
