@@ -237,9 +237,7 @@ class MainWindow < KDE::MainWindow
 
     slots  :openSource
     def openSource
-        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
-        cmd += " " + APP_DIR
-        fork do exec(cmd) end
+        openDirectory(APP_DIR)
     end
 
     def openUrlDocument(url)

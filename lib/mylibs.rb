@@ -336,7 +336,14 @@ class SettingsBase < KDE::ConfigSkeleton
 end
 
 
-
+#--------------------------------------------------------------------------
+#
+#
+def openDirectory(dir)
+    cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
+    cmd += " " + dir
+    fork do exec(cmd) end
+end
 
 #--------------------------------------------------------------------------
 #
@@ -387,3 +394,4 @@ class String
         str.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
     end
 end
+

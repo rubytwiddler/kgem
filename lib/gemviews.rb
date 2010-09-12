@@ -104,7 +104,10 @@ class UpdateDlg < Qt::Dialog
         @versionComboBox.addItems(vers)
         @versionComboBox.currentIndex = 0
         Settings.updateWidgets(self)
-        exec == Qt::Dialog::Accepted
+        @optionsPage.installInSystemVisible = false
+        ret = exec == Qt::Dialog::Accepted
+        @optionsPage.installInSystemVisible = true
+        ret
     end
 
     def confirmUpdateAll
@@ -114,7 +117,10 @@ class UpdateDlg < Qt::Dialog
         self.windowTitle = @msgLabel.text = i18n('Update All Gems')
 
         Settings.updateWidgets(self)
-        exec == Qt::Dialog::Accepted
+        @optionsPage.installInSystemVisible = false
+        ret = exec == Qt::Dialog::Accepted
+        @optionsPage.installInSystemVisible = true
+        ret
     end
 
 

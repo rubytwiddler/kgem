@@ -66,6 +66,11 @@ class GeneralSettingsPage < Qt::Widget
         @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install latest version to skip version selection."))
         @downloadLatestCheckBox = Qt::CheckBox.new(i18n("Always Download latest version to skip version selection."))
 
+        @openDownloadDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open Dir')
+        @openUnpackDir = KDE::PushButton.new(KDE::Icon.new('folder'), 'Open Dir')
+        connect(@openDownloadDir, SIGNAL(:clicked), self, SLOT(:openDownloadDir))
+        connect(@openUnpackDir, SIGNAL(:clicked), self, SLOT(:openUnpackDir))
+
         # objectNames
         #  'kcfg_' + class Settings's instance name.
         @autoFetchCheckBox.objectName = 'kcfg_autoFetchFlag'
@@ -80,9 +85,9 @@ class GeneralSettingsPage < Qt::Widget
             l.addWidget(@installLatestCheckBox)
             l.addWidget(@downloadLatestCheckBox)
             l.addWidget(@autoFetchCheckBox)
-            l.addWidgets('   ', @downloadUrl)
+            l.addWidgets('   ', @downloadUrl, @openDownloadDir)
             l.addWidget(@autoUnpackCheckBox)
-            l.addWidgets('   ', @unpackUrl)
+            l.addWidgets('   ', @unpackUrl, @openUnpackDir)
             l.addStretch
         end
         setLayout(lo)
@@ -91,11 +96,23 @@ class GeneralSettingsPage < Qt::Widget
     slots   'autoFetchChanged(int)'
     def autoFetchChanged(state)
         @downloadUrl.enabled = state == Qt::Checked
+        @openDownloadDir.enabled = state == Qt::Checked
     end
 
     slots   'autoUnpackChanged(int)'
     def autoUnpackChanged(state)
         @unpackUrl.enabled = state == Qt::Checked
+        @openUnpackDir.enabled = state == Qt::Checked
+    end
+
+    slots :openDownloadDir
+    def openDownloadDir
+        openDirectory(@downloadUrl.text)
+    end
+
+    slots :openUnpackDir
+    def openUnpackDir
+        openDirectory(@unpackUrl.text)
     end
 end
 
@@ -155,6 +172,10 @@ class InstallOptionsPage < Qt::Widget
             l.addStretch
         end
         setLayout(lo)
+    end
+
+    def installInSystemVisible=(flag)
+        @installInSystemCheckBox.visible = flag
     end
 end
 
