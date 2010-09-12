@@ -18,7 +18,7 @@ just type gem command.
   gem install kgem
 
 or download latest gems from github and rake to install gem.
-  git clone git@github.com:rubytwiddler/kgem.git
+  git clone git://github.com/rubytwiddler/kgem.git
   cd kgem
   rake gem
   sudo rake installgem
