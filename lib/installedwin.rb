@@ -158,6 +158,8 @@ class InstalledGemWin < Qt::Widget
                     @installedGemsTable, SLOT('filterChanged(const QString &)'))
             w.setClearButtonShown(true)
         end
+        @checkTestBtn = KDE::PushButton.new(KDE::Icon.new('checkbox'), 'Test')
+
 
         # connect
         connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
@@ -169,14 +171,15 @@ class InstalledGemWin < Qt::Widget
                     self, SLOT('itemClicked(QTableWidgetItem *)'))
         connect(@generateRdocBtn, SIGNAL(:clicked), self, SLOT(:generateRdoc))
         connect(@updateGemBtn, SIGNAL(:clicked), self, SLOT(:updateGem))
+        connect(@checkTestBtn, SIGNAL(:clicked), self, SLOT(:testGem))
 
         # layout
         lo = Qt::VBoxLayout.new do |w|
                 w.addWidgets('Filter:', @filterInstalledLineEdit)
                 w.addWidget(@installedGemsTable)
                 w.addWidgets(@updateListBtn, nil,
-                            @viewDirBtn, @viewRdocBtn,
-                             @generateRdocBtn, @updateGemBtn, @uninstallBtn)
+                    @viewDirBtn, @viewRdocBtn,
+                    @generateRdocBtn, @checkTestBtn, @updateGemBtn, @uninstallBtn)
             end
         setLayout(lo)
     end
@@ -199,6 +202,14 @@ class InstalledGemWin < Qt::Widget
     #
     def notifyInstall
         updateInstalledGemList
+    end
+
+    slots :testGem
+    def testGem
+        gem = @installedGemsTable.currentGem
+        return unless gem
+
+        @gemViewer.testGem(gem)
     end
 
     slots :updateGem
@@ -233,6 +244,7 @@ class InstalledGemWin < Qt::Widget
             end
         end
         @installedGemsTable.sortItems(GemListTable::PACKAGE_ATIME)
+        @installedGemsTable.clearSelection
         parent.parent.currentIndex = parent.indexOf(self)
     end
 

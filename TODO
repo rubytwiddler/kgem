@@ -1,9 +1,9 @@
 *respect .gemrc
 *search history
-*check stale make different rows selected.
+*bug text cr/lf
+*check alian ok ?
+*gem env
 
-*check test
 *check cert
 *settings - add github
-*bug text cr/lf
 *version check waiting dialog

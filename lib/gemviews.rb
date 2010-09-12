@@ -135,6 +135,14 @@ Pristine All ?
         @installWin.setStaleTime(stales)
     end
 
+    slots :testGem
+    def testGem(gem)
+        args = %w{ check -t }
+        args << gem.filePath
+        cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        @terminalWin.processStart(cmd, args, i18n("Tested the gem. Please check output window"))
+    end
+
     slots :updateSystem
     def updateSystem
         args = %w{ update --system }
