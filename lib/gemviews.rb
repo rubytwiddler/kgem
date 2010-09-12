@@ -22,13 +22,9 @@ class DockGemViewer < Qt::Object
         @previewWin = previewWin
 
         @detailView.setGetSpecProc(
-            Proc.new do |gem|
-                res = %x{ gem specification #{gem.name} -b  --marshal }
-                unless res.empty?
-                    spec = Marshal.load(res)
-                    gem = GemItem::parseGemSpec(spec)
-                    setDetail(gem)
-                end
+            Proc.new do |g|
+                gem = GemItem::getGemfromPath(g.name)
+                setDetail(gem)
             end
         )
     end
@@ -201,6 +197,8 @@ Pristine All ?
     end
 
     def install(gem, localFlag)
+        return unless gem
+
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
         return unless @selectInstallVerDlg.selectVersion(gem)
 
@@ -218,6 +216,8 @@ Pristine All ?
     end
 
     def uninstall(gem)
+        return unless gem
+
         args = [ 'uninstall' ]
         args.push( gem.package )
         puts "installedLocal? : " + gem.installedLocal?.inspect
@@ -265,6 +265,43 @@ Pristine All ?
             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
         end
         @terminalWin.processStart(cmd, args, "Generated rdoc/ri for #{gem.package}")
+    end
+
+    def getGemPaths
+        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
+    end
+
+    def findGemPath(path)
+        paths = getGemPaths
+        file = nil
+        paths.find do |p|
+            file = p + path
+            File.exist? file
+        end
+        file
+    end
+
+    def viewGemRdoc(gem)
+        return unless gem
+
+        # make rdoc path
+        pkg = gem.package
+        ver = gem.nowVersion
+        url = findGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
+        cmd= Mime::services('.html').first.exec
+        cmd.gsub!(/%\w+/, url)
+        fork do exec(cmd) end
+    end
+
+    def viewGemDir(gem)
+        return unless gem
+
+        pkg = gem.package
+        ver = gem.nowVersion
+        url = findGemPath('/gems/' + pkg + '-' + ver)
+        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
+        cmd += " " + url
+        fork do exec(cmd) end
     end
 end
 
@@ -321,6 +358,8 @@ class DetailWin < Qt::DockWidget
 
     public
     def setDetail(gem)
+        return unless gem
+
         @currentGem = gem
         @textPart.clear
         @moreInfoBtn.hide

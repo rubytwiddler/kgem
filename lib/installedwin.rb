@@ -270,51 +270,17 @@ class InstalledGemWin < Qt::Widget
 
     slots :viewRdoc
     def viewRdoc
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        # make rdoc path
-        pkg = gem.package
-        ver = gem.nowVersion
-        url = findGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
-        cmd= Mime::services('.html').first.exec
-        cmd.gsub!(/%\w+/, url)
-        fork do exec(cmd) end
-    end
-
-    def getGemPaths
-        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
-    end
-
-    def findGemPath(path)
-        paths = getGemPaths
-        file = nil
-        paths.find do |p|
-            file = p + path
-            File.exist? file
-        end
-        file
+        @gemViewer.viewGemRdoc(@installedGemsTable.currentGem)
     end
 
 
     slots :viewDir
     def viewDir
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        pkg = gem.package
-        ver = gem.nowVersion
-        url = findGemPath('/gems/' + pkg + '-' + ver)
-        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
-        cmd += " " + url
-        fork do exec(cmd) end
+        @gemViewer.viewGemDir(@installedGemsTable.currentGem)
     end
 
     slots :uninstallGem
     def uninstallGem
-        gem = @installedGemsTable.currentGem
-        return unless gem
-
-        @gemViewer.uninstall(gem)
+        @gemViewer.uninstall(@installedGemsTable.currentGem)
     end
 end

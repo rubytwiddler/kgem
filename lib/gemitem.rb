@@ -82,6 +82,12 @@ class GemItem
         gem
     end
 
+    def self.getGemfromPath(path)
+        res = %x{ gem specification #{path} -b  --marshal }
+        return nil if res.empty?
+        spec = Marshal.load(res)
+        GemItem::parseGemSpec(spec)
+    end
 end
 
 

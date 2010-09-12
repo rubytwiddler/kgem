@@ -198,8 +198,7 @@ class DownloadedWin < Qt::Widget
         files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
         files.unshift
         @gemViewer.setFiles(files)
-        spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
-        gem = GemItem::parseGemSpec(spec)
+        gem = GemItem::getGemfromPath(filePath)
         @gemViewer.setDetail(gem)
 
         proc = lambda do |item|
@@ -215,8 +214,7 @@ class DownloadedWin < Qt::Widget
         return unless fetchedGem and !fetchedGem.installed
 
         filePath = fetchedGem.filePath
-        spec = Marshal.load(%x{ gem specification #{filePath} --marshal })
-        gem = GemItem::parseGemSpec(spec)
+        gem = GemItem::getGemfromPath(filePath)
         gem.addLocalPath(filePath)
         @gemViewer.install(gem, true)   # localFlag = true
     end
