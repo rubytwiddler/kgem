@@ -121,13 +121,11 @@ class DownloadedWin < Qt::Widget
             w.setClearButtonShown(true)
         end
 
-        @updateBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), 'Install')
         @deleteBtn = KDE::PushButton.new(KDE::Icon.new('edit-delete'), 'Delete')
         @unpackBtn = KDE::PushButton.new('Unpack')
 
         #
-        connect(@updateBtn, SIGNAL(:clicked), self, SLOT(:updateList))
         connect(@gemFileList, SIGNAL('itemClicked(QTableWidgetItem *)'), self, SLOT('itemClicked(QTableWidgetItem *)'))
         connect(@installBtn, SIGNAL(:clicked), self, SLOT(:install))
         connect(@deleteBtn, SIGNAL(:clicked), self, SLOT(:delete))
@@ -137,7 +135,7 @@ class DownloadedWin < Qt::Widget
         lo = Qt::VBoxLayout.new
         lo.addWidgets('Filter:', @filterLine)
         lo.addWidget(@gemFileList)
-        lo.addWidgets(@updateBtn, nil, @installBtn, @unpackBtn, @deleteBtn)
+        lo.addWidgets(nil, @installBtn, @unpackBtn, @deleteBtn)
         setLayout(lo)
     end
 

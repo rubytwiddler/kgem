@@ -145,7 +145,6 @@ class InstalledGemWin < Qt::Widget
     def createWidget
         @installedGemsTable = GemListTable.new('installed')
 
-        @updateListBtn = KDE::PushButton.new(KDE::Icon.new('view-refresh'), 'Update List')
         @viewDirBtn = KDE::PushButton.new(KDE::Icon.new('folder'), 'View Directory')
         @viewRdocBtn = KDE::PushButton.new(KDE::Icon.new('help-contents'), 'View RDoc')
         @generateRdocBtn = KDE::PushButton.new(KDE::Icon.new('document-new'), 'Generate RDoc/ri')
@@ -165,8 +164,6 @@ class InstalledGemWin < Qt::Widget
         connect(@viewDirBtn, SIGNAL(:clicked), self, SLOT(:viewDir))
         connect(@viewRdocBtn, SIGNAL(:clicked), self, SLOT(:viewRdoc))
         connect(@uninstallBtn, SIGNAL(:clicked), self, SLOT(:uninstallGem))
-        connect(@updateListBtn, SIGNAL(:clicked),
-                self, SLOT(:updateInstalledGemList))
         connect(@installedGemsTable, SIGNAL('itemClicked(QTableWidgetItem *)'),
                     self, SLOT('itemClicked(QTableWidgetItem *)'))
         connect(@generateRdocBtn, SIGNAL(:clicked), self, SLOT(:generateRdoc))
@@ -177,9 +174,7 @@ class InstalledGemWin < Qt::Widget
         lo = Qt::VBoxLayout.new do |w|
                 w.addWidgets('Filter:', @filterInstalledLineEdit)
                 w.addWidget(@installedGemsTable)
-                w.addWidgets(@updateListBtn, nil,
-                    @viewDirBtn, @viewRdocBtn,
-                    @generateRdocBtn, @checkTestBtn, @updateGemBtn, @uninstallBtn)
+                w.addWidgets(nil, @viewDirBtn, @viewRdocBtn, @generateRdocBtn, @checkTestBtn, @updateGemBtn, @uninstallBtn)
             end
         setLayout(lo)
     end

@@ -79,7 +79,7 @@ class SearchWin < Qt::Widget
     end
 
     def createWidget
-        @gemList = SearchTable.new      #Qt::ListWidget.new
+        @gemList = SearchTable.new
         @searchLine = KDE::LineEdit.new do |w|
             w.setClearButtonShown(true)
         end

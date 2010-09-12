@@ -259,7 +259,7 @@ class MainWindow < KDE::MainWindow
     slots :configureApp
     def configureApp
         Settings.updateWidgets(@settingsDlg)
-        @settingsDlg.exec
+        @settingsDlg.exec == Qt::Dialog::Accepted
     end
 
     slots :gemCommandHelp

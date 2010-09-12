@@ -141,7 +141,7 @@ class KDE::ActionCollection
     # @return : KDE::Action
     # @parameter name :
     # @parameter parent : parent Qt::Object
-    # @parameter options { :text=>name, :icon, :shortCut, :triggered }
+    # @parameter options { :text=>name, :icon=>iconName, :shortCut=>key, :triggered=>SLOT or [object, SLOT] }
     def addNew(name, parent=self.parent, options = {})
         text = options[:text] || name
         icon = options[:icon]
@@ -249,7 +249,7 @@ class SettingsBase < KDE::ConfigSkeleton
             def set#{name}(v)
                 item = findItem('#{name}')
 #                 unless item.immutable?
-                    item.property = @#{name} = Qt::Variant.fromValue(v)
+                    item.property = Qt::Variant.fromValue(v)
 #                 end
             end
 
@@ -284,6 +284,10 @@ class SettingsBase < KDE::ConfigSkeleton
                 name = o.objectName.sub(/^kcfg_/, '')
                 if o.kind_of? Qt::CheckBox
                     prop = o.checked.to_s
+                elsif o.kind_of? Qt::ComboBox
+                    prop = o.currentIndex.to_s
+                elsif o.kind_of? KDE::UrlRequester
+                    prop = o.text
                 else
                     prop = '?'
                 end
@@ -292,7 +296,8 @@ class SettingsBase < KDE::ConfigSkeleton
                 else
                     val = ''
                 end
-                puts " name:#{name}, property:#{prop}, settings value:#{val}"
+                err = prop == val ? '' : '  !!  Error !!'
+                puts " name:#{name}, property:#{prop}, settings value:#{val} #{err}"
             end
         end
     end
@@ -324,10 +329,15 @@ class SettingsBase < KDE::ConfigSkeleton
                 if options.respond_to? name then
                     if o.kind_of? Qt::CheckBox
                         options.send(name, o.checked)
+                        if options.send(name[0..-2]) != o.checked then
+                            puts "Error !!  : #{name[0..-2]}(#{options.send(name[0..-2])} != #{o.checked}"
+                        end
                     elsif o.kind_of? Qt::ComboBox
                         options.send(name, o.currentIndex)
                     elsif o.kind_of? KDE::UrlRequester
                         options.send(name, o.url)
+                    else
+                        puts "not know type class:#{o.class.name}"
                     end
                 end
             end

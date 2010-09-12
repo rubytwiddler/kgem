@@ -87,7 +87,7 @@ class DockGemViewer < Qt::Object
                 passiveMessage("Cleaned Up old versions of gems (system).")
                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
                 @terminalWin.processStart(cmd, args, \
-                                          i18n("Cleaned Up old versions of gems (in user).")) do |ret|
+                    i18n("Cleaned Up old versions of gems (in user).")) do |ret|
                     notifyInstall
                 end
             end
@@ -137,8 +137,10 @@ Pristine All ?
 
     slots :testGem
     def testGem(gem)
-        args = %w{ check -t }
-        args << gem.filePath
+        spec = gem.spec
+        return unless spec
+        args = %w{ check --test }
+        args += [ spec.name, '--version', spec.version.version ]
         cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
         @terminalWin.processStart(cmd, args, i18n("Tested the gem. Please check output window"))
     end
@@ -435,7 +437,14 @@ class TerminalWin < Qt::DockWidget
     def createWidget
         @textEdit = Qt::TextEdit.new
         @textEdit.readOnly = true
-        setWidget(@textEdit)
+        @clearBtn = KDE::PushButton.new(KDE::Icon.new('edit-clear'), i18n('Clear'))
+        connect(@clearBtn, SIGNAL(:clicked), @textEdit, SLOT(:clear))
+
+        lw = VBoxLayoutWidget.new do |l|
+            l.addWidget(@textEdit)
+            l.addWidgets(nil, @clearBtn)
+        end
+        setWidget(lw)
     end
 
     def processSetup
@@ -460,7 +469,9 @@ class TerminalWin < Qt::DockWidget
             KDE::MessageBox::information(self, msg)
             return
         end
-        puts "execute : " + cmd.inspect + " " + args.join(' ').inspect
+        msg = "execute : " + cmd.inspect + " " + args.join(' ').inspect + "\n"
+        print msg
+        write(msg)
         @successMsg = successMsg
         @failMsg = failMsg
         @error = 0

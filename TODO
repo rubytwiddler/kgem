@@ -1,6 +1,7 @@
 *respect .gemrc
 *search history
-*check alian ok ?
+*open kgem rdoc
+*test require development dependencies.
 
 *check cert
 *settings - add github
