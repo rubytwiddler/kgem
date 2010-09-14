@@ -1,5 +1,4 @@
 require 'cgi'
-require 'benchmark'
 require 'date'
 
 
@@ -149,8 +148,9 @@ Pristine All ?
     end
 
     def upgradable(gem)
-        time =  Benchmark.realtime { gem.availableVersions }
-        puts "Time : " + time.to_s
+        stime = Time.now
+        gem.availableVersions
+        puts "Time : " + (Time.now - stime).to_s
         gem.availableVersions.first != gem.nowVersion
     end
 

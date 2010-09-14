@@ -1,7 +1,6 @@
 #
 #   settings.
 #
-require 'kio'
 #
 require "mylibs"
 
