@@ -271,14 +271,13 @@ Pristine All ?
         @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
     end
 
-    def findGemPath(path)
+    def findGemPath(relPath)
         paths = getGemPaths
-        file = nil
-        paths.find do |p|
-            file = p + path
-            File.exist? file
+        path = paths.find do |pa|
+            File.exist? pa + relPath
         end
-        file
+        return nil unless path
+        path + relPath
     end
 
     def viewGemRdoc(gem)

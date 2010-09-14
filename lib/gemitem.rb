@@ -41,6 +41,7 @@ class GemItem
         @filePath = filePath
     end
 
+    # return versoin knowing newest, not latest.
     def nowVersion
         version.split(/,/, 2).first
     end

@@ -119,11 +119,9 @@ end
 #  Mandriva doesn't include kio smoke library.
 #   FolderSelectorLineEdit substitute KDE::UrlRequester
 #
-class FolderSelectorLineEdit< Qt::Widget
+class FolderSelectorLineEdit < Qt::Widget
     def initialize(dir=nil, parent=nil)
         super(parent)
-
-#         setContentsMargins(0,0,0,0)
 
         # widgets
         @lineEdit = KDE::LineEdit.new
@@ -407,12 +405,14 @@ end
 #
 #
 def openDirectory(dir)
+    return if !dir or dir.empty?
     cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
     cmd += " " + dir
     fork do exec(cmd) end
 end
 
 def openUrlDocument(url)
+    return if !url or url.empty?
     cmd = Mime::services('.html').first.exec
     cmd.gsub!(/%\w+/, url)
     fork do exec(cmd) end
