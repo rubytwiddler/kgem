@@ -246,12 +246,6 @@ class MainWindow < KDE::MainWindow
         @gemEnvDlg.displayEnv
     end
 
-    def openUrlDocument(url)
-        cmd= Mime::services('.html').first.exec
-        cmd.gsub!(/%\w+/, url)
-        fork do exec(cmd) end
-    end
-
     slots :configureShortCut
     def configureShortCut
         KDE::ShortcutsDialog.configure(@actions)

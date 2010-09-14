@@ -288,9 +288,7 @@ Pristine All ?
         pkg = gem.package
         ver = gem.nowVersion
         url = findGemPath('/doc/' + pkg + '-' + ver + '/rdoc/index.html')
-        cmd= Mime::services('.html').first.exec
-        cmd.gsub!(/%\w+/, url)
-        fork do exec(cmd) end
+        openUrlDocument(url)
     end
 
     def viewGemDir(gem)
@@ -299,9 +297,7 @@ Pristine All ?
         pkg = gem.package
         ver = gem.nowVersion
         url = findGemPath('/gems/' + pkg + '-' + ver)
-        cmd = KDE::MimeTypeTrader.self.query('inode/directory').first.exec[/\w+/]
-        cmd += " " + url
-        fork do exec(cmd) end
+        openDirectory(url)
     end
 end
 
