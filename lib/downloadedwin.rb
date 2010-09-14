@@ -154,6 +154,7 @@ class DownloadedWin < Qt::Widget
     slots :updateList
     def updateList
         def allFilesInDir(dir)
+            return [] unless dir
             exDir = File.expand_path(dir)
             return [] unless File.directory?(exDir)
             Dir.chdir(exDir)
@@ -167,7 +168,7 @@ class DownloadedWin < Qt::Widget
             end
         end
 
-        dirs = GemDirs + [ Settings.autoFetchDir.pathOrUrl ]
+        dirs = GemDirs + [ Settings.autoFetchDir ]
         gems = dirs.uniq.inject([]) do |res, dir|
             res + allFilesInDir(dir)
         end
@@ -238,7 +239,7 @@ class DownloadedWin < Qt::Widget
         fetchedGem = @gemFileList.currentGem
         fileName = fetchedGem.filePath
         if Settings.autoUnpackFlag then
-            dir = Settings.autoUnpackDir.pathOrUrl
+            dir = Settings.autoUnpackDir
         else
             dir = KDE::FileDialog::getExistingDirectory(Settings.autoUnpackDir)
             return unless dir

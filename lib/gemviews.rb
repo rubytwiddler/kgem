@@ -237,7 +237,7 @@ Pristine All ?
         return unless @selectDownloadVerDlg.selectVersion(gem)
 
         if Settings.autoFetchFlag then
-            dir = Settings.autoFetchDir.pathOrUrl
+            dir = Settings.autoFetchDir
         else
             dir = KDE::FileDialog::getExistingDirectory(Settings.autoFetchDir)
             return unless dir

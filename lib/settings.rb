@@ -16,10 +16,10 @@ class Settings < SettingsBase
 
         # folder settings.
         addBoolItem(:autoFetchFlag, false)
-        addUrlItem(:autoFetchDir,
+        addStringItem(:autoFetchDir,
                    File.join(KDE::GlobalSettings.downloadPath, 'gem_cache'))
         addBoolItem(:autoUnpackFlag, false)
-        addUrlItem(:autoUnpackDir, File.join(KDE::GlobalSettings.downloadPath, 'gem_src'))
+        addStringItem(:autoUnpackDir, File.join(KDE::GlobalSettings.downloadPath, 'gem_src'))
         addBoolItem(:installLatestFlag, false)
         addBoolItem(:downloadLatestFlag, false)
 
@@ -51,16 +51,14 @@ class GeneralSettingsPage < Qt::Widget
 
     def createWidget
         @autoFetchCheckBox = Qt::CheckBox.new(i18n("Always Download gem in same directory."))
-        @downloadUrl = KDE::UrlRequester.new(KDE::Url.new())
+        @downloadUrl = FolderSelectorLineEdit.new
         @downloadUrl.enabled = false
-        @downloadUrl.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoFetchCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoFetchChanged(int)'))
 
         @autoUnpackCheckBox = Qt::CheckBox.new(i18n("Always Unpack gem in same directory."))
-        @unpackUrl = KDE::UrlRequester.new(KDE::Url.new())
+        @unpackUrl = FolderSelectorLineEdit.new
         @unpackUrl.enabled = false
-        @unpackUrl.mode = KDE::File::Directory | KDE::File::LocalOnly
         connect(@autoUnpackCheckBox, SIGNAL('stateChanged(int)'),
                 self, SLOT('autoUnpackChanged(int)'))
         @installLatestCheckBox = Qt::CheckBox.new(i18n("Always Install latest version to skip version selection."))
