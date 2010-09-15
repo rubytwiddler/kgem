@@ -239,10 +239,12 @@ Pristine All ?
         if Settings.autoFetchFlag then
             dir = Settings.autoFetchDir
         else
-            dir = KDE::FileDialog::getExistingDirectory(Settings.autoFetchDir)
+            puts Settings.autoFetchDir.inspect
+            dir = Qt::FileDialog::getExistingDirectory(nil, 'select folder', Settings.autoFetchDir)
             return unless dir
-            Settings.autoFetchDir.setUrl(dir)
+            Settings.autoFetchDir = dir
         end
+        FileUtils.mkdir_p(dir)
         Dir.chdir(dir)
         cmd = 'gem'
         args = @selectDownloadVerDlg.makeDownloadArgs

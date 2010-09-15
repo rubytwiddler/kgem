@@ -84,7 +84,7 @@ class SearchWin < Qt::Widget
             w.sizePolicy = Qt::SizePolicy.new(Qt::SizePolicy::Expanding, Qt::SizePolicy::Fixed,  Qt::SizePolicy::LineEdit)
         end
 
-        @searchBtn = KDE::PushButton.new(KDE::Icon.new('search'), i18n('Search'))
+        @searchBtn = KDE::PushButton.new(KDE::Icon.new('system-search'), i18n('Search'))
         @downloadBtn = KDE::PushButton.new(KDE::Icon.new('download'), i18n('Download'))
         @installBtn = KDE::PushButton.new(KDE::Icon.new('run-build-install'), i18n('Install'))
 

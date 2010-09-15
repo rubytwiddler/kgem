@@ -241,7 +241,7 @@ class DownloadedWin < Qt::Widget
         if Settings.autoUnpackFlag then
             dir = Settings.autoUnpackDir
         else
-            dir = KDE::FileDialog::getExistingDirectory(Settings.autoUnpackDir)
+            dir = Qt::FileDialog::getExistingDirectory(nil, 'select folder',  Settings.autoUnpackDir)
             return unless dir
             Settings.autoUnpackDir.setUrl(dir)
         end

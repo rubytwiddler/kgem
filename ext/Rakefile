@@ -50,7 +50,7 @@ task :install_menu do
 [Desktop Entry]
 Name=Kgem
 Comment=Ruby Gem Tool with KDE GUI
-Exec=kgem %f
+Exec=kgem.rb %f
 Icon=kgem
 Terminal=false
 Type=Application
