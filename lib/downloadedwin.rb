@@ -163,7 +163,7 @@ class DownloadedWin < Qt::Widget
                 fGem = FetchedGem.new
                 fGem.fileName = f
                 fGem.directory = exDir
-                fGem.installed = InstalledGemList.checkVersionGemInstalled(f)
+                fGem.installed = InstalledGemList.checkVersionedGemInstalled(f)
                 fGem
             end
         end

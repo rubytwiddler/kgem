@@ -153,7 +153,7 @@ module InstalledGemList
         @gemList ||= get
     end
 
-    def checkVersionGemInstalled(versionedName)
+    def checkVersionedGemInstalled(versionedName)
         vname = versionedName.gsub(/\.gem$/, '')
         gem = getCached.find do |gem|
             gem.name + '-' + gem.version == vname

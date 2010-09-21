@@ -42,6 +42,7 @@ require "previewwin"
 require "gemcmddlgs"
 require "gemviews"
 require "gemhelpdlg"
+require "gemsource"
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -117,6 +118,11 @@ class MainWindow < KDE::MainWindow
         settingsMenu.addAction(configureShortCutAction)
         settingsMenu.addAction(configureAppAction)
 
+        # source menu
+        sourceAction = @actions.addNew(i18n('Configure Gem Sources'), self, \
+            { :icon => 'repository', :shortCut => 'F12', :triggered => :configureSources })
+        sourceMenu = KDE::Menu.new(i18n('Sources'))
+        sourceMenu.addAction(sourceAction)
 
         # Help menu
         aboutDlg = KDE::AboutApplicationDialog.new($about)
@@ -150,6 +156,7 @@ class MainWindow < KDE::MainWindow
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
         menu.addMenu( toolsMenu )
+        menu.addMenu( sourceMenu )
         menu.addMenu( settingsMenu )
         menu.addMenu( helpMenu )
         setMenuBar(menu)
@@ -255,6 +262,12 @@ class MainWindow < KDE::MainWindow
     def configureApp
         Settings.updateWidgets(@settingsDlg)
         @settingsDlg.exec == Qt::Dialog::Accepted
+    end
+
+    slots :configureSources
+    def configureSources
+        @gemSourceDlg ||= GemSourceDlg.new(self)
+        @gemSourceDlg.exec
     end
 
     slots :gemCommandHelp

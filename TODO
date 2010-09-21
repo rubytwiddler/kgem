@@ -1,7 +1,6 @@
 
 *check cert
 *respect .gemrc
-*settings - add github
 *version check waiting dialog
-*cache gem
-*installed? check version
+*clear gem cache
+*about dialog
