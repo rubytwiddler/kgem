@@ -125,7 +125,7 @@ class MainWindow < KDE::MainWindow
         sourceMenu.addAction(sourceAction)
 
         # Help menu
-        aboutDlg = KDE::AboutApplicationDialog.new($about)
+        aboutDlg = KDE::AboutApplicationDialog.new(KDE::CmdLineArgs.aboutData)
         gemHelpAction = @actions.addNew(i18n('Gem Command Line Help'), self, \
             { :icon => 'help-about', :shortCut => 'F1', :triggered => :gemCommandHelp })
         openAboutAction = @actions.addNew(i18n('About kgem'), self, \
@@ -318,11 +318,11 @@ end
 #    main start
 #
 
-$about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION,
+about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION,
                             KDE::ki18n('Gem Utitlity with KDE GUI.')
                            )
-$about.addLicenseTextFile(APP_DIR + '/MIT-LICENSE')
-KDE::CmdLineArgs.init(ARGV, $about)
+about.addLicenseTextFile(APP_DIR + '/MIT-LICENSE')
+KDE::CmdLineArgs.init(ARGV, about)
 
 $app = KDE::Application.new
 args = KDE::CmdLineArgs.parsedArgs()
