@@ -6,7 +6,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
     s.name = "kgem"
-    s.version = "0.1.6"
+    s.version = "0.1.7"
     s.author = "ruby.twiddler"
     s.email = "ruby.twiddler at gmail.com"
     s.homepage = "http://github.com/rubytwiddler/kgem/wiki"
@@ -45,7 +45,7 @@ def install_console_helper(console_helper_name, target_cmd_name)
     puts "ln -s #{console_helper_target}  #{console_helper_link}"
     puts "write #{console_app_file}"
 
-    File.cp(pam_src_path, pam_dst_path)
+    FileUtils.cp(pam_src_path, pam_dst_path)
     if File.exist?(console_helper_link) then
         File.unlink(console_helper_link)
     end

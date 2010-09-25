@@ -28,7 +28,7 @@ EOF
     puts "ln -s #{console_helper_target}  #{console_helper_link}"
     puts "write #{console_app_file}"
 
-    File.cp(pam_src_path, pam_dst_path)
+    FileUtils.cp(pam_src_path, pam_dst_path)
     if File.exist?(console_helper_link) then
         File.unlink(console_helper_link)
     end
