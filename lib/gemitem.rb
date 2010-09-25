@@ -1,4 +1,3 @@
-require 'ftools'
 require 'fileutils'
 require 'rubygems'
 require 'rubygems/specification'

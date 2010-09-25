@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 $KCODE = 'UTF8'
-require 'ftools'
+require 'fileutils'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
 APP_VERSION = "0.0.1"
@@ -9,7 +9,6 @@ APP_VERSION = "0.0.1"
 # standard libs
 require 'rubygems'
 require 'uri'
-require 'fileutils'
 
 # additional libs
 require 'korundum4'

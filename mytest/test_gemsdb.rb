@@ -1,4 +1,4 @@
-require 'ftools'
+require 'fileutils'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
 APP_DIR = File.expand_path(File.dirname(__FILE__))
@@ -30,7 +30,7 @@ class MyGemsDbTest < Test::Unit::TestCase
             @progressDlg = nil
             end
         end
-            
+
         def test_parameters
             pkg = "rake"
             spec = GemSpec.getGemSpecInCacheWithUpdate(pkg)
@@ -77,12 +77,12 @@ class MyGemsDbTest < Test::Unit::TestCase
         assert_equal(@gemsdb.getGemSpecInCache('colour').version.to_s, "0.4")
         assert_equal(@gemsdb.getGemSpecInCache('shared').version.to_s, "1.1.0")
         assert_equal(@gemsdb.getGemSpecInCache('zyps').version.to_s, "0.7.6")
-        
+
         assert_equal(@gemsdb.getGemInCache('googlecharts'), @gemsdb.getGemInDb('googlecharts'))
         assert_equal(@gemsdb.getGemInCache('shared'), @gemsdb.getGemInDb('shared'))
         assert_equal(@gemsdb.test_parameters, ["installed_version"])
     end
-    
+
     def test_gemsdb_gemspec1
         comp_gem('googlecharts')
         comp_gem('shared')
@@ -92,7 +92,7 @@ class MyGemsDbTest < Test::Unit::TestCase
 
 
 
-    
+
     def comp_gem(name)
         cachegem = @gemsdb.getGemInCache(name)
         dbgem = @gemsdb.getGemInDb(name)
@@ -106,4 +106,4 @@ class MyGemsDbTest < Test::Unit::TestCase
 
 
 end
-        
+

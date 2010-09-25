@@ -6,7 +6,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
     s.name = "kgem"
-    s.version = "0.1.4"
+    s.version = "0.1.6"
     s.author = "ruby.twiddler"
     s.email = "ruby.twiddler at gmail.com"
     s.homepage = "http://github.com/rubytwiddler/kgem/wiki"
@@ -28,7 +28,7 @@ EOF
     s.extra_rdoc_files = ["README"]
 end
 
-require 'ftools'
+require 'fileutils'
 APP_DIR = File.expand_path(File.dirname(__FILE__))
 RES_DIR = File::join(APP_DIR, "pkg_resources")
 def install_console_helper(console_helper_name, target_cmd_name)

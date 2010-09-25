@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-require 'ftools'
+require 'fileutils'
 
 APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
 RES_DIR = File::join(APP_DIR, "pkg_resources")
@@ -14,6 +14,15 @@ def install_console_helper(console_helper_name, target_cmd_name)
     pam_dst_path = File.join(etc_dir, 'pam.d', console_helper_name)
     console_app_file = File.join(etc_dir, 'security', 'console.apps', console_helper_name)
     console_helper_target = %x{ which consolehelper }.strip!
+
+    if !File.exist?(console_helper_target) then
+        puts <<-EOF
+
+consolehelper is not installed.
+install usermode package and try again.
+EOF
+        exit 1
+    end
 
     puts "cp #{pam_src_path} #{pam_dst_path}"
     puts "ln -s #{console_helper_target}  #{console_helper_link}"

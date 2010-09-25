@@ -12,7 +12,7 @@ end
 
 #--------------------------------------------------------------------------
 #
-require 'ftools'
+require 'fileutils'
 
 APP_NAME = File.basename(__FILE__).sub(/\.rb/, '')
 APP_DIR = File::dirname(File.expand_path(File.dirname(__FILE__)))
