@@ -20,7 +20,6 @@ LIB_DIR = File::join(APP_DIR, "lib")
 APP_VERSION = "0.1.0"
 
 # standard libs
-require 'fileutils'
 
 # additional libs
 require 'korundum4'

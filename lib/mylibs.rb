@@ -153,13 +153,13 @@ class FolderSelectorLineEdit < Qt::Widget
     end
 
     def folder
-        @LineEdit.text
+        @lineEdit.text
     end
     # compatibility for UrlRequester
     alias text folder
 
     def folder=(dir)
-        @LineEdit.text = dir
+        @lineEdit.text = dir
     end
 end
 
