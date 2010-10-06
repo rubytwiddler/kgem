@@ -1,3 +1,5 @@
+require 'time'
+
 class FetchedGem
     attr_accessor  :fileName, :directory, :installed
 
@@ -196,15 +198,15 @@ class DownloadedWin < Qt::Widget
         return unless File.exist?(filePath)
 
         @installBtn.enabled =  @deleteBtn.enabled = ! fetchedGem.installed
-        files = %x{ tar xvf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
+        files = %x{ tar xf #{filePath} data.tar.gz -O | gunzip -c | tar t }.split(/\n/)
         files.unshift
         @gemViewer.setFiles(files)
-        gem = GemItem::getGemfromPath(filePath)
+        gem = GemItem::getGemfromCache(filePath)
         @gemViewer.setDetail(gem)
 
         proc = lambda do |item|
             file = item.text
-            @gemViewer.previewWin.setText( file, %x{ tar xvf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O } )
+            @gemViewer.previewWin.setText( file, %x{ tar xf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x #{file.shellescape} -O } )
         end
         @gemViewer.setPreviewProc(proc)
     end
@@ -237,7 +239,7 @@ class DownloadedWin < Qt::Widget
     slots  :unpack
     def unpack
         fetchedGem = @gemFileList.currentGem
-        fileName = fetchedGem.filePath
+        filePath = fetchedGem.filePath
         if Settings.autoUnpackFlag then
             dir = Settings.autoUnpackDir
         else
@@ -245,8 +247,10 @@ class DownloadedWin < Qt::Widget
             return unless dir
             Settings.autoUnpackDir.setUrl(dir)
         end
-        puts %Q{ execute: gem unpack #{fileName} --target=#{dir.shellescape} }
-        %x{ gem unpack #{fileName} --target=#{dir.shellescape} }
+        outDir = File.join(dir, File.basename(filePath).sub(File.extname(filePath),''))
+        FileUtils.remove_dir(outDir, true)
+        FileUtils.mkdir_p(outDir)
+        %x{ tar xf #{filePath.shellescape} data.tar.gz -O | gunzip -c | tar x --directory=#{outDir.shellescape} }
     end
 
 end

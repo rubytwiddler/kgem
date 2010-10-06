@@ -41,7 +41,7 @@ class GemHelpDlg < KDE::MainWindow
     end
 
     def iniHelpList
-        list = %x{gem help command}.inject([]) do |a, line|
+        list = %x{gem help command}.split(/[\r\n]+/).inject([]) do |a, line|
                     line =~ /^\s{4}(\w+)/ ? a << $1 : a
         end
         list.unshift('examples')

@@ -44,6 +44,15 @@ class Qt::VBoxLayout
         w.push(nil)
         addWidgetWithNilStretch(*w)
     end
+
+    def addGroup(name)
+        g = Qt::GroupBox.new(name)
+        vbx = Qt::VBoxLayout.new do |vb|
+            yield(vb)
+        end
+        g.setLayout(vbx)
+        addWidget(g)
+    end
 end
 
 
@@ -163,7 +172,29 @@ class FolderSelectorLineEdit < Qt::Widget
     end
 end
 
+class FileSelectorLineEdit < FolderSelectorLineEdit
+    def initialize(filter="", file=nil, parent=nil)
+        super(file,parent)
 
+        @filter = filter
+        @dirSelectBtn.setIcon(KDE::Icon.new('document-open'))
+    end
+
+    def openSelectDlg
+        path = Qt::FileDialog::getOpenFileName(self,'select file', @lineEdit.text, @filter)
+        unless !path || path.empty?
+            @lineEdit.text = path
+        end
+    end
+
+    def fileName
+        @lineEdit.text
+    end
+
+    def fileName=(file)
+        @lineEdit.text = file
+    end
+end
 
 
 #--------------------------------------------------------------------------
@@ -424,7 +455,7 @@ end
 #
 module Enumerable
     class Proxy
-        instance_methods.each { |m| undef_method(m) unless m.match(/^__/) }
+        instance_methods.each { |m| undef_method(m) unless m.match(/^(__|object_id$)/)  }
         def initialize(enum, method=:map)
             @enum, @method = enum, method
         end
@@ -435,6 +466,42 @@ module Enumerable
 
     def every
         Proxy.new(self)
+    end
+end
+
+
+#
+#  meta programming support methods.
+#   ref. http://http://dannytatom.github.com/metaid/
+#
+class Object
+    # The hidden singleton lurks behind everyone
+    def metaclass; class << self; self; end; end
+    def meta_eval &blk; metaclass.instance_eval &blk; end
+
+    # Adds methods to a metaclass
+    def meta_def name, &blk
+        meta_eval { define_method name, &blk }
+    end
+
+    # Defines an instance method within a class
+    def class_def name, &blk
+        class_eval { define_method name, &blk }
+    end
+end
+#
+#
+#
+class Dir
+    def self.allDirs(path)
+        dirs = []
+        Dir.foreach(path) do |f|
+            fullPath = File.join(path, f)
+            if File.directory?(fullPath) and f !~ /^\.\.?$/ then
+                dirs << f
+            end
+        end
+        dirs
     end
 end
 

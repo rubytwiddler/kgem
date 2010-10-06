@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'rubygems'
 require 'rubygems/specification'
+require 'yaml'
 
 # additional libs
 require 'korundum4'
@@ -86,6 +87,13 @@ class GemItem
         res = %x{ gem specification #{path} -b  --marshal }
         return nil if res.empty?
         spec = Marshal.load(res)
+        GemItem::parseGemSpec(spec)
+    end
+
+    def self.getGemfromCache(filePath)
+        res = %x{ tar xf #{filePath.shellescape} metadata.gz -O | gunzip -c }
+        return nil if res.empty?
+        spec = YAML::load(res)
         GemItem::parseGemSpec(spec)
     end
 end
