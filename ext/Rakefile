@@ -15,7 +15,7 @@ def install_console_helper(console_helper_name, target_cmd_name)
     console_app_file = File.join(etc_dir, 'security', 'console.apps', console_helper_name)
     console_helper_target = %x{ which consolehelper }.strip!
 
-    if !File.exist?(console_helper_target) then
+    if !console_helper_target then
         puts <<-EOF
 
 consolehelper is not installed.
@@ -33,6 +33,7 @@ EOF
         File.unlink(console_helper_link)
     end
     File.symlink(console_helper_target, console_helper_link)
+    FileUtils.mkdir_p(File.dirname(console_app_file))
 
     open(console_app_file, 'w') do |f|
         f.write(<<-EOF

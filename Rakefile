@@ -6,7 +6,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
     s.name = "kgem"
-    s.version = "0.1.8"
+    s.version = "0.1.9"
     s.author = "ruby.twiddler"
     s.email = "ruby.twiddler at gmail.com"
     s.homepage = "http://github.com/rubytwiddler/kgem/wiki"

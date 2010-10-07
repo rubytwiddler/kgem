@@ -11,7 +11,7 @@ APP_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
 APP_NAME = File.basename(APP_FILE).sub(/\.rb/, '')
 APP_DIR = File::dirname(File.expand_path(File.dirname(APP_FILE)))
 LIB_DIR = File::join(APP_DIR, "lib")
-APP_VERSION = "0.1.8"
+APP_VERSION = "0.1.9"
 
 
 # standard libs
@@ -23,7 +23,11 @@ require 'net/http'
 require 'shellwords'
 
 # additional libs
-require 'korundum4'
+begin
+    require 'korundum4'
+rescue LoadError
+    require 'korundum'
+end
 require 'ktexteditor'
 
 #

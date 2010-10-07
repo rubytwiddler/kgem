@@ -1,7 +1,6 @@
 *optionally use kdesu.
 *gem update --system  latest_ver >= 1.3.7
 *select gem executable gem/gem1.9
-*cache file list.
 
 *check cert
 *respect .gemrc
