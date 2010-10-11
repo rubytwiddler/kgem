@@ -1,4 +1,5 @@
 #!/usr/bin/ruby
+# encoding: UTF-8
 #
 #    2010 by ruby.twiddler@gmail.com
 #
@@ -11,7 +12,7 @@ APP_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
 APP_NAME = File.basename(APP_FILE).sub(/\.rb/, '')
 APP_DIR = File::dirname(File.expand_path(File.dirname(APP_FILE)))
 LIB_DIR = File::join(APP_DIR, "lib")
-APP_VERSION = "0.1.9"
+APP_VERSION = "0.1.10"
 
 
 # standard libs

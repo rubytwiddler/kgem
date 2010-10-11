@@ -76,7 +76,9 @@ class DockGemViewer < Qt::Object
         return unless res == KDE::MessageBox::Yes
 
         args = %w{ cleanup }
-        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        cmd = getSuGemCmd
+        return unless cmd
+        args = cmdargs + args
         @terminalWin.processStart(cmd, args) do |ret|
             if ret == 0 then
                 passiveMessage("Cleaned Up old versions of gems (system).")
@@ -104,7 +106,9 @@ Pristine All ?
         return unless res == KDE::MessageBox::Yes
 
         args = %w{ pristine --all }
-        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        cmd = getSuGemCmd
+        return unless cmd
+        args = cmdargs + args
         @terminalWin.processStart(cmd, args, i18n("Pristined All."))
     end
 
@@ -143,7 +147,9 @@ Pristine All ?
     slots :updateSystem
     def updateSystem
         args = %w{ update --system }
-        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        cmd = getSuGemCmd
+        return unless cmd
+        args = cmdargs + args
         @terminalWin.processStart(cmd, args, i18n("Updated All Gems."))
     end
 
@@ -160,7 +166,9 @@ Pristine All ?
         return unless @updateDlg.confirmUpdateAll
 
         args = @updateDlg.makeUpdateArgs
-        cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+        cmd = getSuGemCmd
+        return unless cmd
+        args = cmdargs + args
         @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in system).")) do |ret|
             if ret == 0 then
                 args << '--user-install'
@@ -184,12 +192,8 @@ Pristine All ?
         return unless @updateDlg.selectOption(gem)
 
         args = @updateDlg.makeUpdateArgs
-        if gem.installedLocal? then
-            args.push( '--user-install' )
-            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        else
-            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        end
+        cmd, args = getSystemCmd(args, gem.installedLocal?, '--user-install')
+        return unless cmd
         @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
             notifyInstall
             notifyDownload
@@ -203,12 +207,8 @@ Pristine All ?
         return unless @selectInstallVerDlg.selectVersion(gem)
 
         args = @selectInstallVerDlg.makeInstallArgs(localFlag)
-        if Settings.installInSystemDirFlag then
-            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        else
-            args.push( '--user-install' )
-            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        end
+        cmd, args = getSystemCmd(args, !Settings.installInSystemDirFlag, '--user-install')
+        return unless cmd
         @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
             notifyInstall
             notifyDownload
@@ -220,13 +220,8 @@ Pristine All ?
 
         args = [ 'uninstall' ]
         args.push( gem.package )
-        puts "installedLocal? : " + gem.installedLocal?.inspect
-        if gem.installedLocal? then
-            args.push( '--user-install' )
-            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        else
-            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        end
+        cmd, args = getSystemCmd(args, gem.installedLocal?, '--user-install')
+        return unless cmd
         @terminalWin.processStart(cmd, args, "Uninstalled #{gem.package}") do |ret|
             notifyInstall
         end
@@ -260,12 +255,8 @@ Pristine All ?
 
         args = @GenerateRdocDlg.makeRdocArgs(gem)
         return unless args
-        puts "installedLocal? : " + gem.installedLocal?.inspect
-        if !@GenerateRdocDlg.all? and gem.installedLocal? then
-            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        else
-            cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-        end
+        cmd, args = getSystemCmd(args, !@GenerateRdocDlg.all? && gem.installedLocal?)
+        return unless cmd
         @terminalWin.processStart(cmd, args, "Generated rdoc/ri for #{gem.package}")
     end
 
@@ -299,6 +290,51 @@ Pristine All ?
         ver = gem.nowVersion
         url = findGemPath('/gems/' + pkg + '-' + ver)
         openDirectory(url)
+    end
+
+    def getSystemCmd(args, localFlag, localOption = nil)
+        if localFlag then
+            args.push( localOption ) if localOption
+            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+        else
+            cmd, cmdargs = getSuGemCmd
+            return nil unless cmd
+            args = cmdargs + args
+        end
+        [cmd, args]
+    end
+
+    def getSuGemCmd
+        return @suGemCmd if @suGemCmd
+
+        unless @kdesuChecked then
+            exePaths = %x{ kde4-config --path exe }.split(/:/)
+            kdesu = exePaths.find do |p|
+                File.exist?(File.join(p, 'kdesu'))
+            end
+            if kdesu then
+                @kdesu = File.join(kdesu, 'kdesu')
+            end
+            @kdesuChecked = true
+        end
+        unless @gksuChecked then
+            gksu = %x{ which gksu }.chomp
+            unless gksu.empty?
+                @gksu = gksu
+            end
+            @gksuChecked = true
+        end
+
+        if @kdesu then
+            cmds = "#{@kdesu}", "-d -- #{APP_DIR}/bin/gemcmdwin.rb".split(/\s+/)
+        elsif @gksu then
+            cmds = "#{@gksu}",  "-- #{APP_DIR}/bin/gemcmdwin.rb".split(/\s+/)
+        else
+#             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+            KDE::MessageBox::information(self, i18n("cannot find kdesu or gksu. install kdesu or gksu."))
+            return nil
+        end
+        @suGemCmd = cmds
     end
 end
 

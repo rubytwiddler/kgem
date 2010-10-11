@@ -6,7 +6,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
     s.name = "kgem"
-    s.version = "0.1.9"
+    s.version = "0.1.10"
     s.author = "ruby.twiddler"
     s.email = "ruby.twiddler at gmail.com"
     s.homepage = "http://github.com/rubytwiddler/kgem/wiki"
@@ -18,6 +18,7 @@ spec = Gem::Specification.new do |s|
     s.require_path = "lib"
     s.requirements = %w{ korundum4 ktexteditor }
     s.add_runtime_dependency( 'json', '>= 1.4' )
+    s.add_runtime_dependency( 'rake', '>= 0.8' )
     s.description = <<-EOF
 Kgem is KDE GUI for ruby gem tool.
 You can install/uninstall/update/download gems just clicking around,

@@ -60,7 +60,7 @@ task :install_menu do
 [Desktop Entry]
 Name=Kgem
 Comment=Ruby Gem Tool with KDE GUI
-Exec=kgem.rb %f
+Exec=#{File.join(APP_DIR, 'bin', 'kgem.rb')} %f
 Icon=kgem
 Terminal=false
 Type=Application
@@ -72,4 +72,4 @@ MimeType=application/x-gem;
     end
 end
 
-task :default => [ :install_consolehelper, :install_menu  ]
+task :default => [ :install_menu  ]
