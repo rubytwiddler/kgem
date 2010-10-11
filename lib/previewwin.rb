@@ -28,7 +28,7 @@ class PreviewWin < Qt::Widget
         setLayout(lo)
     end
 
-    ModeTbl = { /\.rb$/ => 'Ruby',
+    ModeTbl = { /\.(rb|rake)$/ => 'Ruby',
                 /Rakefile$/ => 'Ruby',
                 /\.(h|c|cpp)$/ => 'C++',
                 /\.json$/ => 'JSON',
