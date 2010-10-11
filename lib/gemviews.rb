@@ -536,7 +536,7 @@ class TerminalWin < Qt::DockWidget
 
     def processStart(cmd, args, successMsg='Successed', failMsg='Failed', &block)
         unless @process.state == Qt::Process::NotRunning
-            msg = "process is already running."
+            msg = "process is already running. please close (install,uninstall..etc) process window."
             write(msg)
             KDE::MessageBox::information(self, msg)
             return
