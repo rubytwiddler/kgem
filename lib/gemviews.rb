@@ -1,6 +1,6 @@
 require 'cgi'
 require 'date'
-
+require 'rbconfig'
 
 
 
@@ -326,14 +326,19 @@ Pristine All ?
         end
 
         if @kdesu then
-            cmds = "#{@kdesu}", "-d -- #{APP_DIR}/bin/gemcmdwin.rb".split(/\s+/)
+            cmds = "#{@kdesu} -d --".split(/\s+/)
         elsif @gksu then
-            cmds = "#{@gksu}",  "-- #{APP_DIR}/bin/gemcmdwin.rb".split(/\s+/)
+            cmds = "#{@gksu} --".split(/\s+/)
         else
 #             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
             KDE::MessageBox::information(self, i18n("cannot find kdesu or gksu. install kdesu or gksu."))
             return nil
         end
+
+        if RUBY_VERSION[0,3] == "1.9" then
+            cmds.push "ruby1.9"
+        end
+        cmds.push "#{APP_DIR}/bin/gemcmdwin.rb"
         @suGemCmd = cmds
     end
 end

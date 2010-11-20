@@ -531,7 +531,7 @@ class String
 
     def sql_escape
         str = _chomp_null
-        str.gsub(/\\/, '\&\&').gsub(/'/, "''")    #'
+        str.gsub(/\\/, '\&\&').gsub(/'/, "''")    #') #
     end
 end
 

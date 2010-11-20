@@ -98,7 +98,48 @@ class GemItem
     end
 end
 
+require 'rubygems'
+require 'rubygems/gem_runner'
+require 'rubygems/exceptions'
+require 'stringio'
 
+module GemCmd
+    require 'rbconfig'
+    extend self
+
+    def _getRubyexe
+        File.join(RbConfig::CONFIG['bindir'], RbConfig::CONFIG['RUBY_INSTALL_NAME'])
+    end
+
+    def rubyexe
+        @rubyexe ||= _getRubyexe
+    end
+
+    REQUIRED_VERSION = Gem::Requirement.new ">= 1.8.6"
+
+    def exec(*args)
+        execf(*args).string
+    end
+
+    def execf(*args)
+        unless REQUIRED_VERSION.satisfied_by? Gem.ruby_version then
+            # abort "Expected Ruby Version #{required_version}, is #{Gem.ruby_version}"
+            return "Expected Ruby Version #{required_version}, is #{Gem.ruby_version}"
+        end
+
+        @outio = StringIO.new
+        Gem::DefaultUserInteraction.ui = Gem::StreamUI.new($stdin, @outio, @outio)
+
+        begin
+            Gem::GemRunner.new.run *args
+        rescue Gem::SystemExitException => e
+    #        exit e.exit_code
+            @outio.puts e.inspect
+        end
+        @outio
+    end
+
+end
 
 module InstalledGemList
     extend self
@@ -106,11 +147,11 @@ module InstalledGemList
     def get
         gemList = nil
         cnt = 0
-        gemf = open('|gem query -d -l')
+        lines = GemCmd.exec( %w{ query -d -l } ).split(/\n/)
         begin
             summary = ''
             gem = nil
-            while line = gemf.gets
+            while line = lines.shift
                 case line
                 when /^(\w.*)/ then
                     if gem then
@@ -138,7 +179,7 @@ module InstalledGemList
             gem.summary = summary.strip
             gemList << gem
         ensure
-            gemf.close
+#             gemf.close
         end
 
         oldeGems = gemList.inject([]) do |s, g|
