@@ -47,7 +47,7 @@ class GemSourceDlg < Qt::Dialog
         @sourceUrls = {}
         @rubygemsCheckBox.checked = false
         @githubCheckBox.checked = false
-        %x{ gem sources -l }.split(/\n/).each do |line|
+        GemCmd.exec("sources -l").split(/\n/).each do |line|
             url = line[UrlRegexp]
             if url then
                 case url
@@ -140,13 +140,13 @@ class GemSourceDlg < Qt::Dialog
         deletes =  @orgUrls - newUrls
         deletes.each do |url|
             msg += "delete #{url}\n"
-            %x{ gem sources --remove #{url} }
+            GemCmd.exec("sources --remove #{url}")
         end
 
         adds =  newUrls - @orgUrls
         adds.each do |url|
             msg += "add #{url}\n"
-            %x{ gem sources --add #{url} }
+            GemCmd.exec("sources --add #{url}")
         end
         unless msg.empty? then
             KDE::MessageBox.information(self, msg)

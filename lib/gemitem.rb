@@ -50,7 +50,7 @@ class GemItem
     def availableVersions
         return @versions if instance_variable_defined? :@versions
 
-        res = %x{ gem list #{name} -a -r }
+        res = GemCmd.exec("list #{name} -a -r ")
         res =~ /#{Regexp.escape(name)}\s+\(([^\)]+)\)/
         res = $1.split(/,\s+/).map { |v| v.split(/ /).first.strip }
         if res then
@@ -61,7 +61,7 @@ class GemItem
     end
 
     def installedLocal?
-        res = %x{ gem query -l -d -n '^#{@package}$' }
+        res = GemCmd.exec("query -l -d -n '^#{@package}$'")
         res =~ /#{@package}/ and res =~ %r? /home/?
     end
 
@@ -84,7 +84,7 @@ class GemItem
     end
 
     def self.getGemfromPath(path)
-        res = %x{ gem specification #{path} -b  --marshal }
+        res = GemCmd.exec("specification #{path} -b  --marshal")
         return nil if res.empty?
         spec = Marshal.load(res)
         GemItem::parseGemSpec(spec)
@@ -122,6 +122,9 @@ module GemCmd
     end
 
     def execf(*args)
+        if args.size == 1 && args[0].kind_of?(String) then
+            args = args[0].strip.split(/\s+/)
+        end
         unless REQUIRED_VERSION.satisfied_by? Gem.ruby_version then
             # abort "Expected Ruby Version #{required_version}, is #{Gem.ruby_version}"
             return "Expected Ruby Version #{required_version}, is #{Gem.ruby_version}"
@@ -131,7 +134,7 @@ module GemCmd
         Gem::DefaultUserInteraction.ui = Gem::StreamUI.new($stdin, @outio, @outio)
 
         begin
-            Gem::GemRunner.new.run *args
+            Gem::GemRunner.new.run args
         rescue Gem::SystemExitException => e
     #        exit e.exit_code
             @outio.puts e.inspect
@@ -147,7 +150,7 @@ module InstalledGemList
     def get
         gemList = nil
         cnt = 0
-        lines = GemCmd.exec( %w{ query -d -l } ).split(/\n/)
+        lines = GemCmd.exec("query -d -l").split(/\n/)
         begin
             summary = ''
             gem = nil

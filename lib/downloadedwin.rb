@@ -111,7 +111,7 @@ class DownloadedWin < Qt::Widget
         Qt::Timer.singleShot(0, self, SLOT(:updateList))
     end
 
-    GemDirs = %x{ gem environment gempath }.split(/:/).map! do |dir|
+    GemDirs = GemCmd.exec("environment gempath").split(/:/).map! do |dir|
         File.join(dir.strip, 'cache')
     end
 

@@ -41,7 +41,7 @@ class GemHelpDlg < KDE::MainWindow
     end
 
     def iniHelpList
-        list = %x{gem help command}.split(/[\r\n]+/).inject([]) do |a, line|
+        list = GemCmd.exec("help command").split(/[\r\n]+/).inject([]) do |a, line|
                     line =~ /^\s{4}(\w+)/ ? a << $1 : a
         end
         list.unshift('examples')
@@ -51,7 +51,7 @@ class GemHelpDlg < KDE::MainWindow
 
 
     def listSelected(item)
-        text = %x{gem help #{item.text}}
+        text = GemCmd.exec("help #{item.text}")
         @helpText.clear
         @helpText.appendHtml("<pre>" + text + "</pre>")
     end

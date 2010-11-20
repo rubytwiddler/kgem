@@ -247,7 +247,7 @@ class InstalledGemWin < Qt::Widget
     slots 'itemClicked(QTableWidgetItem *)'
     def itemClicked(item)
         unless item.gem.spec then
-            specStr = %x{gem specification #{item.gem.package} -l --marshal}
+            specStr = GemCmd.exec("specification #{item.gem.package} -l --marshal")
             begin
                 spec = Marshal.load(specStr)
             rescue NoMethodError, ArgumentError => e
@@ -258,7 +258,7 @@ class InstalledGemWin < Qt::Widget
             item.gem.spec = spec
         end
         @gemViewer.setDetail( item.gem )
-        files = %x{gem contents --prefix #{item.gem.package} -v #{item.gem.version}}.split(/[\r\n]+/)
+        files = GemCmd.exec("contents --prefix #{item.gem.package} -v #{item.gem.version}").split(/\n/)
         @gemViewer.setFiles( files )
 
         proc = lambda do |item|

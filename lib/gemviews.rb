@@ -123,7 +123,7 @@ Pristine All ?
 
     slots :checkStale
     def checkStale
-        lines = %x{ gem stale }.split(/\n/)
+        lines = GemCmd.exec("stale").split(/\n/)
         stales = []
         lines.each do |l|
             gv, t = l.split(/ at /, 2)
@@ -261,7 +261,7 @@ Pristine All ?
     end
 
     def getGemPaths
-        @gemPath ||= %x{gem environment gempath}.chomp.split(/:/)
+        @gemPath ||= GemCmd.exec(%w{gem environment gempath}).chomp.split(/:/)
     end
 
     def findGemPath(relPath)

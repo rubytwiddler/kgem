@@ -304,7 +304,7 @@ class GemEnvDlg < Qt::Dialog
     end
 
     def writeEnvData
-        @textEdit.setPlainText( %x{ gem env } )
+        @textEdit.setPlainText( GemCmd.exec("env") )
         resize(460,440)
         @wroteEnv = true
     end
