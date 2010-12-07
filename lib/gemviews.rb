@@ -245,7 +245,7 @@ Pristine All ?
     end
 
     def getGemPaths
-        @gemPath ||= GemCmd.exec(%w{gem environment gempath}).chomp.split(/:/)
+        @gemPath ||= GemCmd.exec("environment gempath").chomp.split(/:/)
     end
 
     def findGemPath(relPath)
