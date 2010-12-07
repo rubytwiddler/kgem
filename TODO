@@ -1,11 +1,8 @@
 *gem update --system  latest_ver >= 1.3.7
 
-*BUG: error on generating rdoc/ri --user-install
-*BUG: update ignores specified version no.
-*BUG: about kgem dialog does not work.
-
 *check cert
 *respect .gemrc
 *version check waiting dialog
 *clear gem cache
-*suppress needless output from kdesu.
+
+*add status bar and add progress status of processing sudo command.

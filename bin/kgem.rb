@@ -128,11 +128,11 @@ class MainWindow < KDE::MainWindow
         @sourceMenu.addAction(sourceAction)
 
         # Help menu
-        aboutDlg = KDE::AboutApplicationDialog.new(KDE::CmdLineArgs.aboutData)
+        @aboutDlg = KDE::AboutApplicationDialog.new(KDE::CmdLineArgs.aboutData)
         gemHelpAction = @actions.addNew(i18n('Gem Command Line Help'), self, \
             { :icon => 'help-about', :shortCut => 'F1', :triggered => :gemCommandHelp })
         openAboutAction = @actions.addNew(i18n('About kgem'), self, \
-            { :icon => 'help-about', :triggered => [ aboutDlg, :exec ] })
+            { :icon => 'help-about', :triggered => [ @aboutDlg, :exec ] })
         openDocUrlAction = @actions.addNew(i18n('Open Document Wiki'), self, \
             { :icon => 'help-contents', :triggered => :openDocUrl })
         openReportIssueUrlAction = @actions.addNew(i18n('Report Bug'), self, \

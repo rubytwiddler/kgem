@@ -559,6 +559,7 @@ class TerminalWin < Qt::DockWidget
     def processReadyRead
         lines = @process.readAll.data
         lines.gsub!(/~?ScimInputContextPlugin.*?\n/, '')
+        lines.gsub!(/^.*?KDESu::.*?\n/, '')
         unless lines.empty?
             print lines
             write( lines )
