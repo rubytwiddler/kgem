@@ -118,6 +118,7 @@ end
 #--------------------------------------------------------------------------
 #
 #
+require "shellwords"
 def passiveMessage(text)
     %x{ kdialog --passivepopup #{text.shellescape} }
 end

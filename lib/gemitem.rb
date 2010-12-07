@@ -61,7 +61,7 @@ class GemItem
     end
 
     def installedLocal?
-        res = GemCmd.exec("query -l -d -n '^#{@package}$'")
+        res = GemCmd.exec("query -l -d -n ^#{@package}$")
         res =~ /#{@package}/ and res =~ %r? /home/?
     end
 
@@ -142,6 +142,45 @@ module GemCmd
         @outio
     end
 
+    # @return: array command with paramater for system(sudo) gem command
+    def suCmds
+        return @suGemCmds if @suGemCmds
+
+        unless @kdesuChecked then
+            exePaths = %x{ kde4-config --path exe }.split(/:/)
+            kdesu = exePaths.find do |p|
+                File.exist?(File.join(p, 'kdesu'))
+            end
+            if kdesu then
+                @kdesu = File.join(kdesu, 'kdesu')
+            end
+            @kdesuChecked = true
+        end
+        unless @gksuChecked then
+            gksu = %x{ which gksu }.chomp
+            unless gksu.empty?
+                @gksu = gksu
+            end
+            @gksuChecked = true
+        end
+
+        if @kdesu then
+            cmds = "#{@kdesu} -d --".split(/\s+/)
+        elsif @gksu then
+            cmds = "#{@gksu} --".split(/\s+/)
+        else
+#             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
+            KDE::MessageBox::information(self, i18n("cannot find kdesu or gksu. install kdesu or gksu."))
+            return nil
+        end
+
+        @suGemCmds = cmds + locCmds
+    end
+
+    # @return: array command with paramater for local (not system) gem command
+    def locCmds
+        @locGemCmds ||= [ rubyexe, "#{APP_DIR}/bin/gemcmdwin.rb" ]
+    end
 end
 
 module InstalledGemList

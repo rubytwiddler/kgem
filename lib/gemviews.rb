@@ -75,19 +75,9 @@ class DockGemViewer < Qt::Object
             @parent, Qt::Object.i18n('Clean up old versions of installed gems in the local repository. Clean Up ?'), Qt::Object.i18n('Clean Up.'))
         return unless res == KDE::MessageBox::Yes
 
-        args = %w{ cleanup }
-        cmd = getSuGemCmd
-        return unless cmd
-        args = cmdargs + args
-        @terminalWin.processStart(cmd, args) do |ret|
-            if ret == 0 then
-                passiveMessage("Cleaned Up old versions of gems (system).")
-                cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-                @terminalWin.processStart(cmd, args, \
-                    i18n("Cleaned Up old versions of gems (in user).")) do |ret|
-                    notifyInstall
-                end
-            end
+        cmdargs = %w{ cleanup }
+        @terminalWin.processLocSysGem(cmdargs, i18n("cleaned up old versions of gems.")) do |ret|
+            notifyInstall
         end
     end
 
@@ -105,19 +95,15 @@ Pristine All ?
             ), Qt::Object.i18n('Pristine All.'))
         return unless res == KDE::MessageBox::Yes
 
-        args = %w{ pristine --all }
-        cmd = getSuGemCmd
-        return unless cmd
-        args = cmdargs + args
-        @terminalWin.processStart(cmd, args, i18n("Pristined All."))
+        cmdargs = %w{ pristine --all }
+        @terminalWin.processSysGem(cmdargs, i18n("Pristined all."))
     end
 
     slots :checkAlien
     def checkAlien
-        cmd = "gem"
-        args = %w{ check --alien }
+        cmdargs = %w{ check --alien }
         @terminalWin.visible = true
-        @terminalWin.processStart(cmd, args, i18n("checked alien see Output Dock window for detail."))
+        @terminalWin.processSysGem(cmdargs, i18n("checked alien see Output Dock window for detail."))
     end
 
 
@@ -138,19 +124,15 @@ Pristine All ?
     def testGem(gem)
         spec = gem.spec
         return unless spec
-        args = %w{ check --test }
-        args += [ spec.name, '--version', spec.version.version ]
-        cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        @terminalWin.processStart(cmd, args, i18n("Tested the gem. Please check output window"))
+        cmdargs = %w{ check --test }
+        cmdargs += [ spec.name, '--version', spec.version.version ]
+        @terminalWin.processLocGem(cmdargs, i18n("Tested the gem. Please check output window"))
     end
 
     slots :updateSystem
     def updateSystem
-        args = %w{ update --system }
-        cmd = getSuGemCmd
-        return unless cmd
-        args = cmdargs + args
-        @terminalWin.processStart(cmd, args, i18n("Updated All Gems."))
+        cmdargs = %w{ update --system }
+        @terminalWin.processSysGem(cmd, args, i18n("Updated All Gems."))
     end
 
     def upgradable(gem)
@@ -165,20 +147,25 @@ Pristine All ?
         @updateDlg ||= UpdateDlg.new
         return unless @updateDlg.confirmUpdateAll
 
-        args = @updateDlg.makeUpdateArgs
-        cmd = getSuGemCmd
-        return unless cmd
-        args = cmdargs + args
-        @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in system).")) do |ret|
-            if ret == 0 then
-                args << '--user-install'
-                cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-                @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in user).")) do |ret|
-                    notifyInstall
-                    notifyDownload
-                end
-            end
+        cmdargs = @updateDlg.makeUpdateArgs
+        @terminalWin.processUserSysGem(cmdargs, i18n("Update All Gems")) do |ret|
+            notifyInstall
+            notifyDownload
         end
+
+#         cmd = getSuGemCmd
+#         return unless cmd
+#         args = cmdargs + args
+#         @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in system).")) do |ret|
+#             if ret == 0 then
+#                 args << '--user-install'
+#                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
+#                 @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in user).")) do |ret|
+#                     notifyInstall
+#                     notifyDownload
+#                 end
+#             end
+#         end
 
     end
 
@@ -191,10 +178,9 @@ Pristine All ?
         @updateDlg ||= UpdateDlg.new
         return unless @updateDlg.selectOption(gem)
 
-        args = @updateDlg.makeUpdateArgs
-        cmd, args = getSystemCmd(args, gem.installedLocal?, '--user-install')
-        return unless cmd
-        @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
+        cmdargs = @updateDlg.makeUpdateArgs
+        @terminalWin.processSelectGem(cmdargs, gem.installedLocal?, \
+                                i18n("Updated #{gem.package}")) do |ret|
             notifyInstall
             notifyDownload
         end
@@ -206,10 +192,9 @@ Pristine All ?
         @selectInstallVerDlg ||= SelectInstallVerDlg.new
         return unless @selectInstallVerDlg.selectVersion(gem)
 
-        args = @selectInstallVerDlg.makeInstallArgs(localFlag)
-        cmd, args = getSystemCmd(args, !Settings.installInSystemDirFlag, '--user-install')
-        return unless cmd
-        @terminalWin.processStart(cmd, args, "Installed #{gem.package}") do |ret|
+        cmdargs = @selectInstallVerDlg.makeInstallArgs(localFlag)
+        @terminalWin.processSelectGem(cmdargs, !Settings.installInSystemDirFlag, \
+                                i18n("Installed #{gem.package}")) do |ret|
             notifyInstall
             notifyDownload
         end
@@ -218,12 +203,12 @@ Pristine All ?
     def uninstall(gem)
         return unless gem
 
-        args = [ 'uninstall' ]
-        args.push( gem.package )
-        cmd, args = getSystemCmd(args, gem.installedLocal?, '--user-install')
-        return unless cmd
-        @terminalWin.processStart(cmd, args, "Uninstalled #{gem.package}") do |ret|
+        cmdargs = [ 'uninstall' ]
+        cmdargs.push( gem.package )
+        @terminalWin.processSelectGem(cmdargs, gem.installedLocal?, \
+                                      "Uninstalled #{gem.package}") do |ret|
             notifyInstall
+            notifyDownload
         end
     end
 
@@ -241,9 +226,8 @@ Pristine All ?
         end
         FileUtils.mkdir_p(dir)
         Dir.chdir(dir)
-        cmd = 'gem'
-        args = @selectDownloadVerDlg.makeDownloadArgs
-        @terminalWin.processStart(cmd, args, "Downloaded #{gem.package}" \
+        cmdargs = @selectDownloadVerDlg.makeDownloadArgs
+        @terminalWin.processLocGem(cmdargs, "Downloaded #{gem.package}" \
                                   "Download #{gem.package} failed.") do |ret|
             notifyDownload
         end
@@ -253,11 +237,11 @@ Pristine All ?
         @GenerateRdocDlg ||= GenerateRdocDlg.new
         return unless @GenerateRdocDlg.exec == Qt::Dialog::Accepted
 
-        args = @GenerateRdocDlg.makeRdocArgs(gem)
-        return unless args
-        cmd, args = getSystemCmd(args, !@GenerateRdocDlg.all? && gem.installedLocal?)
-        return unless cmd
-        @terminalWin.processStart(cmd, args, "Generated rdoc/ri for #{gem.package}")
+        cmdargs = @GenerateRdocDlg.makeRdocArgs(gem)
+        return unless cmdargs
+        @terminalWin.processSelectGem(cmdargs, \
+                !@GenerateRdocDlg.all? && gem.installedLocal?, \
+                "Generated rdoc/ri for #{gem.package}")
     end
 
     def getGemPaths
@@ -292,55 +276,6 @@ Pristine All ?
         openDirectory(url)
     end
 
-    def getSystemCmd(args, localFlag, localOption = nil)
-        if localFlag then
-            args.push( localOption ) if localOption
-            cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-        else
-            cmd, cmdargs = getSuGemCmd
-            return nil unless cmd
-            args = cmdargs + args
-        end
-        [cmd, args]
-    end
-
-    def getSuGemCmd
-        return @suGemCmd if @suGemCmd
-
-        unless @kdesuChecked then
-            exePaths = %x{ kde4-config --path exe }.split(/:/)
-            kdesu = exePaths.find do |p|
-                File.exist?(File.join(p, 'kdesu'))
-            end
-            if kdesu then
-                @kdesu = File.join(kdesu, 'kdesu')
-            end
-            @kdesuChecked = true
-        end
-        unless @gksuChecked then
-            gksu = %x{ which gksu }.chomp
-            unless gksu.empty?
-                @gksu = gksu
-            end
-            @gksuChecked = true
-        end
-
-        if @kdesu then
-            cmds = "#{@kdesu} -d --".split(/\s+/)
-        elsif @gksu then
-            cmds = "#{@gksu} --".split(/\s+/)
-        else
-#             cmd = "#{APP_DIR}/bin/gemcmdwin-super.rb"
-            KDE::MessageBox::information(self, i18n("cannot find kdesu or gksu. install kdesu or gksu."))
-            return nil
-        end
-
-        if RUBY_VERSION[0,3] == "1.9" then
-            cmds.push "ruby1.9"
-        end
-        cmds.push "#{APP_DIR}/bin/gemcmdwin.rb"
-        @suGemCmd = cmds
-    end
 end
 
 #--------------------------------------------------------------------
@@ -506,7 +441,7 @@ class TerminalWin < Qt::DockWidget
         super('Output', parent)
         self.objectName = 'Terminal'
         createWidget
-        processSetup
+#         processSetup
 
         connect(self, SIGNAL('destroyed(QObject*)'), self, SLOT('cleanup(QObject*)'))
     end
@@ -539,21 +474,70 @@ class TerminalWin < Qt::DockWidget
         @textEdit.append(text)
     end
 
-    def processStart(cmd, args, successMsg='Successed', failMsg='Failed', &block)
+
+    # call gem user mode or system
+    def processSelectGem(args, locFlag, successMsg='Successed', failMsg='Failed', &block)
+        if locFlag then
+            processUserGem(args, successMsg, failMsg, &block)
+        else
+            processSysGem(args, successMsg, failMsg, &block)
+        end
+    end
+
+    # call gem locally
+    # no appendage
+    def processLocGem(args, successMsg='Successed', failMsg='Failed', &block)
+        processStartCmds(GemCmd.locCmds + args, successMsg, failMsg, &block)
+    end
+
+    # call gem as user mode
+    # append '--user-install'
+    def processUserGem(args, successMsg='Successed', failMsg='Failed', &block)
+        args.push('--user-install')
+        processStartCmds(GemCmd.locCmds + args, successMsg, failMsg, &block)
+    end
+
+    # call gem as system
+    def processSysGem(args, successMsg='Successed', failMsg='Failed', &block)
+        processStartCmds(GemCmd.suCmds + args, successMsg, failMsg, &block)
+    end
+
+    # local & system
+    def processLocSysGem(args, successMsg='Successed', failMsg='Failed', &block)
+        processStartCmds(GemCmd.suCmds + args, '(system) '+successMsg, failMsg) do |ret|
+            processStartCmds(GemCmd.locCmds + args, '(user) '+successMsg, failMsg, &block)
+        end
+    end
+
+    # user & system
+    # user command appended '--user-install' parameter.
+    def processUserSysGem(args, successMsg='Successed', failMsg='Failed', &block)
+        processStartCmds(GemCmd.suCmds + args, '(system) '+successMsg, failMsg) do |ret|
+            args.push('--user-install')
+            processStartCmds(GemCmd.locCmds + args, '(user) '+successMsg, failMsg, &block)
+        end
+    end
+
+#     def processStart(cmd, args, successMsg='Successed', failMsg='Failed', &block)
+#         processStartCmds(args.unshift(cmd), successMsg, failMsg, &block)
+#     end
+
+    def processStartCmds(cmdargs, successMsg='Successed', failMsg='Failed', &block)
+        processSetup unless @process
         unless @process.state == Qt::Process::NotRunning
             msg = "process is already running. please close (install,uninstall..etc) process window."
             write(msg)
             KDE::MessageBox::information(self, msg)
             return
         end
-        msg = "execute : " + cmd.inspect + " " + args.join(' ').inspect + "\n"
+        msg = "execute : #{cmdargs[0].inspect} #{cmdargs[1..-1].join(' ').inspect}\n"
         print msg
         write(msg)
         @successMsg = successMsg
         @failMsg = failMsg
         @error = 0
         @canceled = 1
-        @process.start(cmd, args)
+        @process.start(cmdargs.shift, cmdargs)
         @finishProc = block
     end
 
@@ -562,6 +546,12 @@ class TerminalWin < Qt::DockWidget
 #         puts "exitCode:#{exitCode}, @error:#{@error}, @canceled:#{@canceled}"
         ret = exitCode  | @error | @canceled
         msg = ret == 0 ? @successMsg : @failMsg
+
+        # clear process
+        @process.kill
+        @process.dispose
+        @process = nil
+
         passiveMessage(msg)
         if @finishProc
             @finishProc.call(ret)
