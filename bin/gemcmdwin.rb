@@ -330,7 +330,6 @@ about = KDE::AboutData.new(APP_NAME, nil, KDE::ki18n(APP_NAME), APP_VERSION)
 KDE::CmdLineArgs.init([], about)
 
 $app = KDE::Application.new
-args = KDE::CmdLineArgs.parsedArgs()
 $config = KDE::Global::config
 win = MainWindow.new(ARGV)
 $app.setTopWidget(win)

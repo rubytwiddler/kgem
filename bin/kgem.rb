@@ -124,8 +124,8 @@ class MainWindow < KDE::MainWindow
         # source menu
         sourceAction = @actions.addNew(i18n('Configure Gem Sources'), self, \
             { :icon => 'repository', :shortCut => 'F12', :triggered => :configureSources })
-        sourceMenu = KDE::Menu.new(i18n('Sources'))
-        sourceMenu.addAction(sourceAction)
+        @sourceMenu = KDE::Menu.new(i18n('Sources'))
+        @sourceMenu.addAction(sourceAction)
 
         # Help menu
         aboutDlg = KDE::AboutApplicationDialog.new(KDE::CmdLineArgs.aboutData)
@@ -159,7 +159,7 @@ class MainWindow < KDE::MainWindow
         menu = KDE::MenuBar.new
         menu.addMenu( fileMenu )
         menu.addMenu( toolsMenu )
-        menu.addMenu( sourceMenu )
+        menu.addMenu( @sourceMenu )
         menu.addMenu( settingsMenu )
         menu.addMenu( helpMenu )
         setMenuBar(menu)

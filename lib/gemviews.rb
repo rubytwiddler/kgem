@@ -132,7 +132,7 @@ Pristine All ?
     slots :updateSystem
     def updateSystem
         cmdargs = %w{ update --system }
-        @terminalWin.processSysGem(cmd, args, i18n("Updated All Gems."))
+        @terminalWin.processSysGem(cmdargs, i18n("Updated All Gems."))
     end
 
     def upgradable(gem)
@@ -152,21 +152,6 @@ Pristine All ?
             notifyInstall
             notifyDownload
         end
-
-#         cmd = getSuGemCmd
-#         return unless cmd
-#         args = cmdargs + args
-#         @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in system).")) do |ret|
-#             if ret == 0 then
-#                 args << '--user-install'
-#                 cmd = "#{APP_DIR}/bin/gemcmdwin.rb"
-#                 @terminalWin.processStart(cmd, args, i18n("Updated All Gems (in user).")) do |ret|
-#                     notifyInstall
-#                     notifyDownload
-#                 end
-#             end
-#         end
-
     end
 
     def updateGem(gem)
@@ -239,9 +224,15 @@ Pristine All ?
 
         cmdargs = @GenerateRdocDlg.makeRdocArgs(gem)
         return unless cmdargs
-        @terminalWin.processSelectGem(cmdargs, \
-                !@GenerateRdocDlg.all? && gem.installedLocal?, \
+        if @GenerateRdocDlg.all? then
+            @terminalWin.processLocGem(cmdargs, "Generated rdoc/ri for all")
+        elsif gem.installedLocal? then
+            @terminalWin.processLocGem(cmdargs, \
                 "Generated rdoc/ri for #{gem.package}")
+        else
+            @terminalWin.processSysGem(cmdargs, \
+                "Generated rdoc/ri for #{gem.package}")
+        end
     end
 
     def getGemPaths
