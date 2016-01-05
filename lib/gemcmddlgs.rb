@@ -21,11 +21,11 @@ module InstallOption
         else
             args.push( '--no-env-shebang' )
         end
-        if options.installUnitTestFlag then
-            args.push( '--test' )
-        else
-            args.push( '--no-test' )
-        end
+#         if options.installUnitTestFlag then
+#             args.push( '--test' )
+#         else
+#             args.push( '--no-test' )
+#         end
         if options.installBinWrapFlag then
             args.push( '--wrappers' )
         else
@@ -43,8 +43,11 @@ module InstallOption
         if options.installformatExecutableFlag then
             args.push( '--format-executable' )
         end
-        args.push( '-P' )
-        args.push( options.installTrustPolicyStr )
+        securityPolicy = options.installTrustPolicyStr
+        if securityPolicy !~ /NoSecurity/ then
+            args.push( '-P' )
+            args.push( securityPolicy )
+        end
 
         args
     end

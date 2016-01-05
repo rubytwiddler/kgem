@@ -153,6 +153,7 @@ class MainWindow < KDE::MainWindow
         # config
         setAutoSaveSettings()
 
+#         Qt::Timer.singleShot(0, self, SLOT(:show))
         Qt::Timer.singleShot(0, self, SLOT(:startCmd))
     end
 
@@ -182,11 +183,13 @@ class MainWindow < KDE::MainWindow
     def startCmd
 
 #         testWinUi
-
+        @args.unshift("--debug")
+        @args.unshift("--backtrace")
         begin
+            @winUi.write( "args:" + @args.inspect )
             Gem::GemRunner.new.run @args
         rescue Gem::SystemExitException => e
-            @winUi.write( e.message )
+            @winUi.write( e.message + " \n " + e.backtrace.join("\n") )
             $exitCode = 1
         end
     end
@@ -294,6 +297,7 @@ class MainWindow < KDE::MainWindow
         def progress_reporter(*args)
             ProgressReporter.new(*args)
         end
+        
 
         class ProgressReporter
             def initialize(size, initial_message,
@@ -307,6 +311,7 @@ class MainWindow < KDE::MainWindow
                 @terminal_message = terminal_message
             end
 
+            
             def updated(message)
                 @progressDlg.labelText = message
                 @count += 1
@@ -315,6 +320,24 @@ class MainWindow < KDE::MainWindow
 
             def done
                 @progressDlg.hide
+            end
+        end
+        
+        def download_reporter(*args)
+            SilentDownloadReporter.new(@outs, *args)
+        end
+
+        class SilentDownloadReporter
+            def initialize(out_stream, *args)
+            end
+
+            def fetch(filename, filesize)
+            end
+
+            def update(current)
+            end
+
+            def done
             end
         end
     end

@@ -1,8 +1,23 @@
 *gem update --system  latest_ver >= 1.3.7
 
+*BUG ruby1.9
+/home/kaji/dev/projects/ruby/kgem/lib/gemitem.rb:89:in `load': incompatible marshal file format (can't be read) (TypeError)
+        format version 4.8 required; 69.82 given
+        from /home/kaji/dev/projects/ruby/kgem/lib/gemitem.rb:89:in `getGemfromPath'
+        from /home/kaji/dev/projects/ruby/kgem/lib/gemviews.rb:25:in `block in initialize'
+        from /home/kaji/dev/projects/ruby/kgem/lib/gemviews.rb:386:in `call'
+        from /home/kaji/dev/projects/ruby/kgem/lib/gemviews.rb:386:in `moreInfo'
+        from /usr/lib/ruby1.9/site_ruby/1.9/KDE/korundum4.rb:60:in `qt_metacall'
+        from /usr/lib/ruby1.9/site_ruby/1.9/KDE/korundum4.rb:60:in `method_missing'
+        from /usr/lib/ruby1.9/site_ruby/1.9/KDE/korundum4.rb:60:in `exec'
+        from bin/kgem.rb:337:in `<main>'
+
+*search option : use gem search instead of rubygem site or merge it.
+
 *check cert
 *respect .gemrc
-*version check waiting dialog
 *clear gem cache
+*open file/directory of downloaded file.
 
+*version check waiting dialog
 *add status bar and add progress status of processing sudo command.

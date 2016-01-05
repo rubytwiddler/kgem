@@ -125,7 +125,7 @@ class SearchWin < Qt::Widget
 
     slots  :search
     def search
-        res = Net::HTTP.get(URI.parse( 'http://rubygems.org/api/v1/search.json?query=' + URI.escape(@searchLine.currentText)))
+        res = Net::HTTP.get(URI.parse( 'https://rubygems.org/api/v1/search.json?query=' + URI.escape(@searchLine.currentText)))
         gems = JSON.parse(res)
         gems.map! do |g| GemItem.parseHashGem(g) end
         @gemList.updateGemList(gems)
